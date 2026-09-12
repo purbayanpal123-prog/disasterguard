@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DisasterGuard | Citizen Emergency Lifeline</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS & JS for Tactical GIS Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; touch-action: manipulation; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 22px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .sos-pulse { animation: pulse-ring 2s infinite cubic-bezier(0.4, 0, 0.6, 1); }
+        .leaflet-container { background: #0b0f19 !important; font-family: 'Inter', sans-serif; }
+        .leaflet-popup-content-wrapper { background: #131b2e !important; color: #f1f5f9 !important; border: 1px solid #06b6d4; border-radius: 12px; }
+        .leaflet-popup-tip { background: #131b2e !important; }
+        .user-gps-pulse {
+            width: 16px; height: 16px;
+            background: #06b6d4;
+            border: 2.5px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 12px #06b6d4;
+            animation: pulse-gps 1.5s infinite;
+        }
+        @keyframes pulse-gps {
+            0% { transform: scale(0.9); opacity: 1; }
+            70% { transform: scale(1.6); opacity: 0.4; }
+            100% { transform: scale(0.9); opacity: 1; }
+        }
+    </style>
+</head>
+<body id="main-body" class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col justify-between p-3.5 max-w-md mx-auto antialiased">
+
+    <!-- Top Status Header with Real IST Clock -->
+    <header class="border-b border-slate-800 pb-2.5">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider whitespace-nowrap">DisasterGuard // Purbayan Pal</span>
+            </div>
+            <span id="conn-status" class="text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
+                LIVE MESH
+            </span>
+        </div>
+        <div class="flex justify-between items-center mt-1">
+            <div class="text-[10px] font-mono text-slate-400">Citizen Emergency Command Lifeline</div>
+            <div id="ist-clock" class="text-[11px] font-mono text-cyan-300 font-bold">IST: --:--:--</div>
+        </div>
+    </header>
+
+    <!-- Civil Defense Siren Authorization Banner -->
+    <div id="audio-auth-banner" onclick="unlockAudio()" class="my-2 p-2.5 bg-cyan-950/80 border border-cyan-500/50 rounded-xl cursor-pointer active:scale-98 transition-all">
+        <div class="flex items-center space-x-2.5">
+            <span class="text-lg">🔊</span>
+            <div class="flex-1 text-xs">
+                <b class="text-cyan-300">Tap to Arm Civil Defense Siren</b>
+                <p class="text-[10px] text-slate-300 mt-0.5">Enables emergency loud horn during alerts.</p>
+            </div>
+            <span id="audio-pill" class="text-[9px] font-mono bg-cyan-800 text-white px-2 py-0.5 rounded font-bold">ENABLE</span>
+        </div>
+    </div>
+
+    <!-- Persistent In-App Push Notification Toast (for incoming alerts & SMS OTP) -->
+    <div id="toast-banner" class="hidden my-2 p-3 bg-cyan-950 border-2 border-cyan-400 rounded-xl text-xs font-mono shadow-2xl space-y-1">
+        <div class="flex justify-between items-center">
+            <span id="toast-title" class="text-cyan-300 font-bold uppercase flex items-center space-x-1.5">
+                <span>📱</span>
+                <span>TELECOM DISPATCH ALERT</span>
+            </span>
+            <button onclick="dismissToast()" class="text-slate-400 hover:text-white font-bold text-sm px-1 leading-none">&times;</button>
+        </div>
+        <div id="toast-body" class="text-slate-200 text-[11px] leading-relaxed"></div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 1: AUTHENTICATION (STRICT LOGIN / REGISTER SEPARATION) -->
+    <!-- ========================================================= -->
+    <div id="auth-container" class="my-auto py-2 space-y-3 font-mono">
+        
+        <div class="bg-[#131B2E] border border-cyan-500/40 rounded-2xl p-4 shadow-xl space-y-3">
+            <div class="text-center space-y-1">
+                <span class="text-3xl">🛡️</span>
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider">Citizen Emergency Portal</h2>
+                <p class="text-[11px] text-slate-400">Login with verified phone or register new emergency ID.</p>
+            </div>
+
+            <!-- TWO DISTINCT TABS: LOGIN vs REGISTER -->
+            <div class="flex border-b border-slate-700 text-xs text-center font-bold">
+                <button type="button" onclick="setAuthTab('login')" id="tab-login" class="flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400">
+                    🔑 LOG IN
+                </button>
+                <button type="button" onclick="setAuthTab('register')" id="tab-register" class="flex-1 py-2.5 text-slate-400 hover:text-white">
+                    📝 REGISTER ID
+                </button>
+            </div>
+
+            <!-- TAB 1: LOGIN (STRICT: MUST BE ALREADY REGISTERED) -->
+            <div id="view-login" class="space-y-3" style="display: block;">
+                <div class="p-2.5 bg-slate-900/80 border border-slate-800 rounded-xl text-[10px] text-slate-400 leading-relaxed">
+                    ℹ️ <b class="text-cyan-300">Registered Citizens:</b> Enter your registered mobile phone number. If you have not registered yet, click <b class="text-white">'REGISTER ID'</b> above.
+                </div>
+
+                <!-- OTP Login Section -->
+                <div class="space-y-2">
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">Registered Mobile Phone</label>
+                        <div class="flex space-x-2 mt-1">
+                            <input id="login-phone" type="tel" placeholder="e.g. 9830012345" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-cyan-300 font-bold text-xs focus:border-cyan-400 focus:outline-none">
+                            <button id="btn-login-otp" type="button" onclick="requestLoginOTP()" class="bg-cyan-900 hover:bg-cyan-800 text-cyan-300 border border-cyan-500/50 px-3 py-2 rounded text-[10px] font-bold active:scale-95 whitespace-nowrap transition-all">
+                                📲 GET OTP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Countdown & status box (Zero on-screen leak: Cyber-Cafe & Kiosk safe) -->
+                    <div id="login-otp-timer-box" class="hidden p-3 bg-gradient-to-r from-cyan-950 via-slate-900 to-cyan-950 border-2 border-cyan-400 rounded-xl space-y-2 shadow-xl my-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-cyan-300 font-bold flex items-center space-x-1.5">
+                                <span>🔒</span>
+                                <span>CELLULAR SMS DISPATCHED</span>
+                            </span>
+                            <span id="login-timer-sec" class="text-red-400 font-bold font-mono px-2 py-0.5 bg-black/60 rounded border border-red-500/40">60s</span>
+                        </div>
+                        <div class="text-[11px] text-slate-200">
+                            A secret 6-digit OTP code has been dispatched via Cellular SMS to: <b id="login-otp-phone-display" class="text-cyan-300 font-mono"></b>
+                        </div>
+                        <p class="text-[10px] text-slate-300 leading-relaxed bg-slate-900/90 p-2 rounded border border-slate-800">
+                            📨 <b>Check Mobile Messages:</b> Please look at your mobile phone's SMS Messages app and type the 6-digit code received into the box below.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">6-Digit Emergency OTP</label>
+                        <input id="login-otp-code" type="text" maxlength="6" placeholder="Enter 6-digit OTP code" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-yellow-400 font-mono text-center tracking-widest text-sm font-bold mt-1 focus:border-cyan-400 focus:outline-none">
+                    </div>
+
+                    <button type="button" onclick="verifyLoginOTP()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-lg text-xs shadow-lg active:scale-98 transition-all">
+                        🔑 VERIFY OTP &amp; LOG IN &rarr;
+                    </button>
+                </div>
+
+                <!-- Or Password Login -->
+                <div class="relative flex py-1 items-center">
+                    <div class="flex-grow border-t border-slate-800"></div>
+                    <span class="flex-shrink mx-2 text-[9px] text-slate-500 uppercase">Or Login with Password</span>
+                    <div class="flex-grow border-t border-slate-800"></div>
+                </div>
+
+                <div class="space-y-2 text-xs">
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">Password</label>
+                        <input id="login-pwd" type="password" autocomplete="current-password" placeholder="Enter secret password" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white mt-1 text-xs focus:border-cyan-400 focus:outline-none">
+                    </div>
+                    <button type="button" onclick="handlePasswordLogin()" class="w-full bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold py-2 rounded-lg text-xs active:scale-98">
+                        LOGIN WITH PASSWORD &rarr;
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: REGISTER (STRICT: NEW USERS MUST VERIFY OTP) -->
+            <div id="view-register" class="space-y-3" style="display: none;">
+                <div class="p-2.5 bg-slate-900/80 border border-slate-800 rounded-xl text-[10px] text-slate-400 leading-relaxed">
+                    🛡️ <b class="text-emerald-300">New Citizen Registration:</b> Mobile phone verification via 6-digit OTP is mandatory before your disaster lifeline profile is activated.
+                </div>
+
+                <div class="space-y-2.5 text-xs">
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">Full Name (Victim / Citizen)</label>
+                        <input id="reg-name" type="text" placeholder="e.g. Rahul Sharma" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white mt-0.5 text-xs focus:border-cyan-400 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">Mobile Phone (For Emergency OTP)</label>
+                        <div class="flex space-x-2 mt-0.5">
+                            <input id="reg-phone" type="tel" placeholder="e.g. 9830012345" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-cyan-300 font-bold text-xs focus:border-cyan-400 focus:outline-none">
+                            <button id="btn-reg-otp" type="button" onclick="requestRegisterOTP()" class="bg-cyan-900 hover:bg-cyan-800 text-cyan-300 border border-cyan-500/50 px-3 py-2 rounded text-[10px] font-bold active:scale-95 whitespace-nowrap transition-all">
+                                📲 GET OTP
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Register countdown & status box (Zero on-screen leak: Cyber-Cafe & Kiosk safe) -->
+                    <div id="reg-otp-timer-box" class="hidden p-3 bg-gradient-to-r from-cyan-950 via-slate-900 to-cyan-950 border-2 border-cyan-400 rounded-xl space-y-2 shadow-xl my-2">
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-cyan-300 font-bold flex items-center space-x-1.5">
+                                <span>🔒</span>
+                                <span>CELLULAR SMS DISPATCHED</span>
+                            </span>
+                            <span id="reg-timer-sec" class="text-red-400 font-bold font-mono px-2 py-0.5 bg-black/60 rounded border border-red-500/40">60s</span>
+                        </div>
+                        <div class="text-[11px] text-slate-200">
+                            A secret 6-digit OTP code has been dispatched via Cellular SMS to: <b id="reg-otp-phone-display" class="text-cyan-300 font-mono"></b>
+                        </div>
+                        <p class="text-[10px] text-slate-300 leading-relaxed bg-slate-900/90 p-2 rounded border border-slate-800">
+                            📨 <b>Check Mobile Messages:</b> Please look at your mobile phone's SMS Messages app and type the 6-digit code received into the box below.
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">6-Digit Verification OTP</label>
+                        <input id="reg-otp" type="text" maxlength="6" placeholder="Enter 6-digit code received" class="w-full bg-slate-900 border-2 border-cyan-500/60 rounded-lg px-3 py-2 text-center text-yellow-400 font-mono tracking-widest text-sm font-bold mt-0.5 focus:border-cyan-300 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] text-slate-400 uppercase font-bold">Create Secret Password</label>
+                        <input id="reg-password" type="password" autocomplete="new-password" placeholder="Create secret password" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white mt-0.5 text-xs focus:border-cyan-400 focus:outline-none">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] text-slate-400 uppercase">Blood Group</label>
+                            <select id="reg-blood" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-white mt-0.5 text-xs focus:border-cyan-400 focus:outline-none">
+                                <option value="O+">O+ Positive</option>
+                                <option value="O-">O- Negative</option>
+                                <option value="A+">A+ Positive</option>
+                                <option value="B+">B+ Positive</option>
+                                <option value="AB+">AB+ Positive</option>
+                                <option value="Unknown">Other / Unknown</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-slate-400 uppercase">Family Phone</label>
+                            <input id="reg-fam-phone" type="tel" placeholder="+91 98XXXXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-2 text-emerald-300 mt-0.5 text-xs focus:border-emerald-400 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="handleRegisterSubmit()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg text-xs shadow-lg active:scale-98 mt-2">
+                        ✅ VERIFY OTP &amp; COMPLETE REGISTRATION &rarr;
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error Message Banner -->
+            <div id="auth-error-msg" class="hidden text-xs text-red-300 bg-red-950/80 border border-red-500/60 p-2.5 rounded-xl text-center font-bold"></div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- VIEW 2: LOGGED-IN CITIZEN EMERGENCY DASHBOARD -->
+    <!-- ========================================================= -->
+    <div id="citizen-dashboard" class="space-y-3 font-mono hidden">
+
+        <!-- Citizen Profile Card & Explicit LOGOUT button -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-3 text-xs flex justify-between items-center shadow-lg">
+            <div>
+                <div class="flex items-center space-x-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <b id="dash-user-name" class="text-white text-sm">Citizen User</b>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5">
+                    Phone: <span id="dash-user-phone" class="text-cyan-300 font-bold">--</span> | Blood: <span id="dash-user-blood" class="text-red-400 font-bold">--</span>
+                </div>
+            </div>
+            <button onclick="handleLogout()" class="bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-700/60 px-3 py-1.5 rounded text-[10px] font-bold active:scale-95 transition-all">
+                🚪 LOGOUT
+            </button>
+        </div>
+
+        <!-- 4-STEP LIVE RESCUE STATUS TIMELINE -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-3 text-xs font-mono">
+            <div class="text-[10px] text-slate-400 uppercase font-bold mb-1.5">Live Rescue Status Timeline</div>
+            <div class="grid grid-cols-4 gap-1 text-center text-[9px]">
+                <div id="step-1" class="bg-slate-900 border border-slate-700 py-1.5 px-1 rounded text-slate-400">1. SOS SENT</div>
+                <div id="step-2" class="bg-slate-900 border border-slate-700 py-1.5 px-1 rounded text-slate-400">2. RECEIVED</div>
+                <div id="step-3" class="bg-slate-900 border border-slate-700 py-1.5 px-1 rounded text-slate-400">3. DISPATCHED</div>
+                <div id="step-4" class="bg-slate-900 border border-slate-700 py-1.5 px-1 rounded text-slate-400">4. SAFE</div>
+            </div>
+            <div id="rescue-status-detail" class="mt-2 text-[10px] text-cyan-300 bg-slate-900/80 p-2 rounded border border-slate-800 text-center">
+                System Standby. Ready to transmit satellite distress signal.
+            </div>
+        </div>
+
+        <!-- MOBILE TACTICAL GIS MAP -->
+        <div class="bg-[#131B2E] border border-cyan-500/40 rounded-2xl p-3 space-y-2">
+            <div class="flex justify-between items-center">
+                <span class="text-cyan-400 font-bold text-xs uppercase">🗺️ Tactical GIS Map</span>
+                <button onclick="centerOnUserGPS()" class="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/50 px-2 py-0.5 rounded text-[9px] font-bold active:scale-95">
+                    📍 Center GPS
+                </button>
+            </div>
+            <!-- MAP STYLE SWITCHER -->
+            <div class="flex items-center justify-between bg-slate-900 border border-slate-700 rounded-lg p-1 text-[10px] font-mono">
+                <span class="text-slate-400 font-bold px-1 text-[9px]">MAP:</span>
+                <div class="flex space-x-1">
+                    <button onclick="setCitizenMapBaseLayer('satellite')" id="cbtn-map-satellite" class="px-2 py-0.5 rounded bg-cyan-600 text-white font-bold transition-all shadow">🛰️ Aerial</button>
+                    <button onclick="setCitizenMapBaseLayer('streets')" id="cbtn-map-streets" class="px-2 py-0.5 rounded text-slate-300 hover:text-white transition-all">🗺️ Streets</button>
+                    <button onclick="setCitizenMapBaseLayer('terrain')" id="cbtn-map-terrain" class="px-2 py-0.5 rounded text-slate-300 hover:text-white transition-all">🏔️ River/Topo</button>
+                    <button onclick="setCitizenMapBaseLayer('dark')" id="cbtn-map-dark" class="px-2 py-0.5 rounded text-slate-300 hover:text-white transition-all">⬛ Dark</button>
+                </div>
+            </div>
+            <div id="citizen-map" class="w-full h-64 rounded-xl border border-slate-700 overflow-hidden relative shadow-inner"></div>
+            <div class="grid grid-cols-4 gap-1 text-[8px] font-mono text-center pt-1">
+                <div class="bg-slate-900 p-1 rounded border border-cyan-500/30 text-cyan-300">📍 You (GPS)</div>
+                <div class="bg-slate-900 p-1 rounded border border-emerald-500/30 text-emerald-300">🏛️ Safe Shelter</div>
+                <div class="bg-slate-900 p-1 rounded border border-amber-500/30 text-amber-300">🚑 Rescue Unit</div>
+                <div class="bg-slate-900 p-1 rounded border border-red-500/30 text-red-300">🌊 Flood Zone</div>
+            </div>
+        </div>
+
+        <!-- HYDROLOGICAL BASIN TELEMETRY & LIVE THREAT GAUGE -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-2xl p-3 space-y-2 text-xs font-mono">
+            <div class="flex justify-between items-center pb-1 border-b border-slate-800">
+                <span class="text-cyan-400 font-bold uppercase text-[10px]">🌊 Brahmaputra Basin Hydrology</span>
+                <span id="client-threat-badge" class="text-[9px] bg-yellow-950 text-yellow-300 border border-yellow-700/50 px-2 py-0.5 rounded font-bold">MODERATE ALERT</span>
+            </div>
+
+            <!-- Threat Level Meter -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-[10px]">
+                    <span class="text-slate-400">Flood Threat Index:</span>
+                    <b id="client-threat-text" class="text-yellow-400">LEVEL 2 (MODERATE)</b>
+                </div>
+                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                    <div id="client-threat-bar" class="h-full bg-yellow-500 transition-all duration-500" style="width: 48%;"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-1.5 text-center text-[10px] pt-1">
+                <div class="bg-slate-900/90 p-1.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[8px]">RIVER LEVEL</div>
+                    <div id="client-river-level" class="text-cyan-300 font-bold text-xs mt-0.5">49.20 m</div>
+                    <div class="text-[8px] text-slate-500">Danger 51.46m</div>
+                </div>
+                <div class="bg-slate-900/90 p-1.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[8px]">DISCHARGE</div>
+                    <div id="client-discharge" class="text-white font-bold text-xs mt-0.5">21,450 m³/s</div>
+                    <div class="text-[8px] text-emerald-400">CWC Live</div>
+                </div>
+                <div class="bg-slate-900/90 p-1.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[8px]">RAINFALL</div>
+                    <div id="client-precip" class="text-cyan-400 font-bold text-xs mt-0.5">4.5 mm/h</div>
+                    <div class="text-[8px] text-slate-500">ECMWF Radar</div>
+                </div>
+                <div class="bg-slate-900/90 p-1.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[8px]">CREST LAG</div>
+                    <div id="client-lag" class="text-yellow-400 font-bold text-xs mt-0.5">2.4 Hours</div>
+                    <div class="text-[8px] text-slate-500">Snyder Lead</div>
+                </div>
+            </div>
+
+            <!-- Drainage Sump Status for Citizen Awareness -->
+            <div id="client-drainage-alert" class="p-1.5 bg-yellow-950/40 border border-yellow-500/40 rounded text-[9px] text-yellow-300 flex items-center space-x-1.5">
+                <span>⚠️</span>
+                <span id="client-drainage-text">City Drainage: <b>3 Sump Nodes Critical</b>. Low-lying roads subject to backflow.</span>
+            </div>
+        </div>
+
+        <!-- SAFE SHELTERS DIRECTORY -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-2xl p-3 space-y-2 text-xs font-mono">
+            <div class="flex justify-between items-center pb-1 border-b border-slate-800">
+                <span class="text-emerald-400 font-bold uppercase text-[10px]">🏛️ Safe High-Ground Shelters</span>
+                <span class="text-[9px] text-slate-400">1-Tap Navigation</span>
+            </div>
+            <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1 text-[10px]">
+                <div class="p-2 bg-slate-900/80 border border-slate-800 rounded-lg flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-white">GMCH Emergency Medical Complex</div>
+                        <div class="text-[9px] text-slate-400">Elev: 58m | Cap: 850 | Distance: ~2.1 km</div>
+                    </div>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=26.1550,91.7700" target="_blank" class="bg-emerald-800 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded text-[9px] font-bold whitespace-nowrap active:scale-95">
+                        🧭 NAVIGATE
+                    </a>
+                </div>
+                <div class="p-2 bg-slate-900/80 border border-slate-800 rounded-lg flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-white">Cotton University High Camp</div>
+                        <div class="text-[9px] text-slate-400">Elev: 54m | Cap: 600 | Distance: ~1.4 km</div>
+                    </div>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=26.1900,91.7500" target="_blank" class="bg-emerald-800 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded text-[9px] font-bold whitespace-nowrap active:scale-95">
+                        🧭 NAVIGATE
+                    </a>
+                </div>
+                <div class="p-2 bg-slate-900/80 border border-slate-800 rounded-lg flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-white">Kamakhya Hilltop Sanctuary</div>
+                        <div class="text-[9px] text-emerald-400 font-bold">Elev: 182m (Safest) | Cap: 1500</div>
+                    </div>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=26.1660,91.7050" target="_blank" class="bg-emerald-800 hover:bg-emerald-700 text-white px-2.5 py-1.5 rounded text-[9px] font-bold whitespace-nowrap active:scale-95">
+                        🧭 NAVIGATE
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ROAD STATUS ADVISORY -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-2xl p-3 space-y-2 text-xs font-mono">
+            <div class="text-cyan-400 font-bold uppercase text-[10px] pb-1 border-b border-slate-800">
+                🛣️ Real-Time Evacuation Route Status
+            </div>
+            <div class="space-y-1 text-[10px]">
+                <div class="p-1.5 bg-slate-900/90 rounded border border-red-900/60 flex justify-between items-center">
+                    <span>MG Road (Riverside)</span>
+                    <span class="text-red-400 font-bold">🔴 SUBMERGED (Closed)</span>
+                </div>
+                <div class="p-1.5 bg-slate-900/90 rounded border border-emerald-900/60 flex justify-between items-center">
+                    <span>GS Road Elevated Corridor</span>
+                    <span class="text-emerald-400 font-bold">🟢 SAFE &amp; OPEN (NDRF Active)</span>
+                </div>
+                <div class="p-1.5 bg-slate-900/90 rounded border border-emerald-900/60 flex justify-between items-center">
+                    <span>NH-27 Highway Bypass</span>
+                    <span class="text-emerald-400 font-bold">🟢 DRY &amp; CLEAR</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION 1: SOS TO CONTROL ROOM -->
+        <div class="bg-gradient-to-b from-red-950/40 to-[#131B2E] border-2 border-red-600/80 rounded-2xl p-4 text-center space-y-3 shadow-2xl">
+            <div class="flex items-center justify-center space-x-1.5 text-red-400 font-bold text-xs uppercase">
+                <span class="animate-pulse">🚨</span>
+                <span>EMERGENCY OPTION 1: DISASTER CONTROL ROOM</span>
+            </div>
+            <p class="text-[11px] text-slate-300">
+                Transmits your satellite GPS coordinates directly into Lead Engineer Purbayan Pal's Control Room.
+            </p>
+
+            <label class="flex items-center justify-center space-x-2 text-slate-300 text-[11px] cursor-pointer">
+                <input id="is-vulnerable" type="checkbox" class="w-4 h-4 rounded text-red-600 bg-slate-900 border-slate-700">
+                <span class="text-red-300 font-semibold">Elderly, Child, or Medical Emergency (P0 Priority)</span>
+            </label>
+
+            <div class="flex justify-center py-2">
+                <button id="btn-sos" onclick="triggerControlRoomSOS()" class="w-36 h-36 rounded-full bg-gradient-to-br from-red-600 to-red-800 text-white font-mono font-bold flex flex-col items-center justify-center border-4 border-white/90 shadow-2xl shadow-red-900/90 active:scale-95 transition-transform sos-pulse">
+                    <svg class="w-8 h-8 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span class="text-base tracking-wider leading-tight">SOS TO ADMIN</span>
+                    <span class="text-[8px] opacity-90 uppercase font-normal">LOCKS SATELLITES</span>
+                </button>
+            </div>
+
+            <div id="gps-box" class="p-2.5 bg-slate-900/90 border border-slate-700 rounded-xl text-xs space-y-1.5 hidden text-left">
+                <div class="flex justify-between items-center text-[10px]">
+                    <span class="text-emerald-400 font-bold">✓ HARDWARE GPS SATELLITES LOCKED</span>
+                    <span id="gps-acc-badge" class="bg-emerald-950 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/40">&plusmn;8m</span>
+                </div>
+                <div class="text-[11px] text-white">
+                    LOCATION: <b id="lat-display" class="text-cyan-400">26.1445</b>, <b id="lng-display" class="text-cyan-400">91.7362</b>
+                </div>
+                <div class="text-[10px] text-emerald-400 font-bold animate-pulse">
+                    RECEIVER: Lead Engineer Purbayan Pal (DisasterGuard Control Room)
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION 2: ALERT FAMILY -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-2xl p-3.5 space-y-2.5 text-xs">
+            <div class="flex items-center space-x-1.5 text-emerald-400 font-bold text-xs uppercase">
+                <span>👨‍👩‍👧‍👦</span>
+                <span>EMERGENCY OPTION 2: ALERT FAMILY &amp; FRIENDS</span>
+            </div>
+            <p class="text-[11px] text-slate-300">
+                Send your current live Google Maps pin directly to personal relatives.
+            </p>
+            <div>
+                <label class="text-[10px] text-slate-400 uppercase">Emergency Relative Phone Number</label>
+                <input id="family-phone-input" type="tel" placeholder="+91 98XXXXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-emerald-300 font-bold mt-1 text-xs focus:border-emerald-400 focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="sendFamilyWhatsApp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-2 rounded-lg flex items-center justify-center space-x-1.5 text-[11px] shadow-lg active:scale-98">
+                    <span>💬 WHATSAPP SOS</span>
+                </button>
+                <button onclick="sendFamilySMS()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-2 rounded-lg flex items-center justify-center space-x-1.5 text-[11px] shadow-lg active:scale-98">
+                    <span>📱 DIRECT SMS</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2-WAY INTERCOM -->
+        <div class="bg-[#131B2E] border border-slate-800 rounded-2xl p-3.5 space-y-2 text-xs">
+            <div class="flex justify-between items-center pb-1.5 border-b border-slate-800">
+                <span class="text-cyan-400 font-bold uppercase text-[10px]">Direct Intercom with Control Room</span>
+                <span class="text-[9px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded">CONNECTED</span>
+            </div>
+            <div id="client-chat-messages" class="h-28 overflow-y-auto space-y-1.5 text-xs font-mono pr-1 bg-slate-900/80 p-2 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 text-center">Chat directly with Control Room (Lead Engineer Purbayan Pal).</div>
+            </div>
+            <div class="flex space-x-1.5 pt-1">
+                <input id="client-chat-input" type="text" placeholder="Type message to Control Room..." class="flex-1 bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white font-mono text-xs focus:border-cyan-400 focus:outline-none" onkeydown="if(event.key==='Enter') sendClientChatMessage()">
+                <button onclick="sendClientChatMessage()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded text-xs font-mono font-bold active:scale-95">SEND</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-3 pt-2 border-t border-slate-800/80 text-center text-[10px] font-mono text-slate-400">
+        &copy; 2026 Purbayan Pal. All Rights Reserved. &bull; Developed &amp; Engineered by: Purbayan Pal
+    </footer>
+
+    <!-- Client Application Logic -->
+    <script>
+        // Global variables
+        var ws = null;
+        var audioContext = null;
+        var currentUser = null;
+        var lastKnownCoords = { lat: 26.1445, lng: 91.7362, accuracy: 10 };
+        var watchId = null;
+        var citizenMap = null;
+        var userMarker = null;
+
+        var activeCountdownInterval = null;
+        var secondsRemaining = 0;
+        var lastSentPhone = "";
+
+        // =========================================================
+        // REAL-TIME IST CLOCK
+        // =========================================================
+                function playSMSChime() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                var t = audioContext.currentTime;
+                var o1 = audioContext.createOscillator();
+                var g1 = audioContext.createGain();
+                o1.frequency.setValueAtTime(987.77, t);
+                g1.gain.setValueAtTime(0.3, t);
+                g1.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                o1.connect(g1); g1.connect(audioContext.destination);
+                o1.start(t); o1.stop(t + 0.15);
+
+                var o2 = audioContext.createOscillator();
+                var g2 = audioContext.createGain();
+                o2.frequency.setValueAtTime(1318.51, t + 0.15);
+                g2.gain.setValueAtTime(0.35, t + 0.15);
+                g2.gain.exponentialRampToValueAtTime(0.01, t + 0.35);
+                o2.connect(g2); g2.connect(audioContext.destination);
+                o2.start(t + 0.15); o2.stop(t + 0.35);
+            } catch(e) {}
+            try { if ("vibrate" in navigator) navigator.vibrate([150, 80, 150]); } catch(e) {}
+        }
+
+        function openSMSApp(phoneInputId, codeDisplayId) {
+            var pEl = document.getElementById(phoneInputId);
+            var cEl = document.getElementById(codeDisplayId);
+            var phone = pEl ? pEl.value.replace(/[^0-9]/g, '') : '';
+            var code = cEl ? cEl.innerText.trim() : '';
+            var msg = encodeURIComponent("DisasterGuard Emergency Verification OTP is: " + code + " (Valid for 60 seconds)");
+            window.location.href = "sms:" + phone + "?body=" + msg;
+        }
+
+        function openWhatsApp(phoneInputId, codeDisplayId) {
+            var pEl = document.getElementById(phoneInputId);
+            var cEl = document.getElementById(codeDisplayId);
+            var phone = pEl ? pEl.value.replace(/[^0-9]/g, '') : '';
+            var code = cEl ? cEl.innerText.trim() : '';
+            var msg = encodeURIComponent("🚨 *DisasterGuard Emergency Verification Code*\n\nYour 6-Digit OTP is: *" + code + "*\n\n⏱️ Valid for 60 seconds.");
+            var url = phone ? "https://api.whatsapp.com/send?phone=" + phone + "&text=" + msg : "https://api.whatsapp.com/send?text=" + msg;
+            window.open(url, '_blank');
+        }
+
+        function updateISTClock() {
+            var now = new Date();
+            var istTime = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            var el = document.getElementById('ist-clock');
+            if (el) el.innerText = "IST: " + istTime;
+        }
+        setInterval(updateISTClock, 1000);
+        updateISTClock();
+
+        // =========================================================
+        // TOAST NOTIFICATIONS (Replaces ugly/crashing native alerts)
+        // =========================================================
+        function showToast(title, message, isAlert) {
+            var banner = document.getElementById('toast-banner');
+            var tTitle = document.getElementById('toast-title');
+            var tBody = document.getElementById('toast-body');
+            if (!banner || !tTitle || !tBody) return;
+
+            tTitle.innerHTML = "<span>📱</span><span>" + title + "</span>";
+            tBody.innerHTML = message;
+            if (isAlert) {
+                banner.className = "my-2 p-3 bg-red-950 border-2 border-red-500 rounded-xl text-xs font-mono shadow-2xl space-y-1 animate-pulse";
+            } else {
+                banner.className = "my-2 p-3 bg-cyan-950 border-2 border-cyan-400 rounded-xl text-xs font-mono shadow-2xl space-y-1";
+            }
+            banner.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function dismissToast() {
+            var banner = document.getElementById('toast-banner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        function showError(msg) {
+            var errEl = document.getElementById('auth-error-msg');
+            if (errEl) {
+                errEl.innerHTML = msg;
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        function clearError() {
+            var errEl = document.getElementById('auth-error-msg');
+            if (errEl) {
+                errEl.classList.add('hidden');
+                errEl.innerHTML = "";
+            }
+        }
+
+        // =========================================================
+        // TAB SWITCHING (LOGIN <-> REGISTER)
+        // =========================================================
+        function setAuthTab(tab) {
+            var vLog = document.getElementById('view-login');
+            var vReg = document.getElementById('view-register');
+            var tLog = document.getElementById('tab-login');
+            var tReg = document.getElementById('tab-register');
+            clearError();
+
+            if (tab === 'login') {
+                if (vLog) vLog.style.display = 'block';
+                if (vReg) vReg.style.display = 'none';
+                if (tLog) tLog.className = "flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 font-bold";
+                if (tReg) tReg.className = "flex-1 py-2.5 text-slate-400 hover:text-white font-medium";
+            } else {
+                if (vLog) vLog.style.display = 'none';
+                if (vReg) vReg.style.display = 'block';
+                if (tReg) tReg.className = "flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 font-bold";
+                if (tLog) tLog.className = "flex-1 py-2.5 text-slate-400 hover:text-white font-medium";
+            }
+        }
+
+        // =========================================================
+        // OTP COUNTDOWN ENGINE
+        // =========================================================
+        function startTimer(durationSec, timerBoxId, timerSecId, btnId) {
+            if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+            secondsRemaining = durationSec;
+
+            var box = document.getElementById(timerBoxId);
+            var secEl = document.getElementById(timerSecId);
+            var btn = document.getElementById(btnId);
+
+            if (box) box.classList.remove('hidden');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-60', 'cursor-not-allowed');
+            }
+
+            function tick() {
+                if (secondsRemaining > 0) {
+                    if (secEl) secEl.innerText = secondsRemaining + "s remaining";
+                    if (btn) btn.innerHTML = "⏳ Wait " + secondsRemaining + "s";
+                    secondsRemaining--;
+                } else {
+                    clearInterval(activeCountdownInterval);
+                    activeCountdownInterval = null;
+                    if (secEl) secEl.innerHTML = "<span class='text-amber-400 font-bold'>⚠️ Expired (Click Resend)</span>";
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-60', 'cursor-not-allowed');
+                        btn.classList.add('animate-pulse', 'bg-cyan-600', 'text-white');
+                        btn.innerHTML = "🔁 RESEND OTP";
+                    }
+                }
+            }
+            tick();
+            activeCountdownInterval = setInterval(tick, 1000);
+        }
+
+        // =========================================================
+        // REQUEST OTP (LOGIN)
+        // =========================================================
+        async function requestLoginOTP() {
+            clearError();
+            var phone = document.getElementById('login-phone').value.trim();
+            if (!phone) {
+                showError("❌ Please enter your mobile phone number first!");
+                return;
+            }
+
+            var btn = document.getElementById('btn-login-otp');
+            if (btn) btn.innerText = "⏳ Sending...";
+
+            try {
+                var res = await fetch('/api/auth/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, mode: 'login' })
+                });
+                var d = await res.json();
+                if (d.success) {
+                    lastSentPhone = phone;
+                    startTimer(60, 'login-otp-timer-box', 'login-timer-sec', 'btn-login-otp');
+                    
+                    var pDisp = document.getElementById('login-otp-phone-display');
+                    if (pDisp) pDisp.innerText = phone;
+                    var timerBox = document.getElementById('login-otp-timer-box');
+                    if (timerBox) timerBox.classList.remove('hidden');
+
+                    var codeBox = document.getElementById('login-otp-code');
+                    if (codeBox) codeBox.focus();
+
+                    playSMSChime();
+                    showToast("CELLULAR SMS DISPATCHED", "✓ 6-Digit OTP sent via Cellular SMS to " + phone + ". Please check your phone's SMS inbox.", false);
+                } else {
+                    if (btn) btn.innerHTML = "📲 GET OTP";
+                    showError(d.error || "Failed to send OTP!");
+                }
+            } catch (err) {
+                if (btn) btn.innerHTML = "📲 GET OTP";
+                showError("❌ Network connection error requesting OTP.");
+            }
+        }
+
+        // =========================================================
+        // VERIFY OTP (LOGIN)
+        // =========================================================
+        async function verifyLoginOTP() {
+            clearError();
+            var phone = document.getElementById('login-phone').value.trim();
+            var otp = document.getElementById('login-otp-code').value.trim();
+
+            if (!phone || !otp) {
+                showError("❌ Please enter both your phone number and 6-digit OTP code!");
+                return;
+            }
+
+            try {
+                var res = await fetch('/api/auth/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, otp: otp })
+                });
+                var d = await res.json();
+                if (d.success) {
+                    if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+                    dismissToast();
+                    setCurrentUser(d.user);
+                } else {
+                    showError(d.error || "❌ Incorrect OTP code! Access denied.");
+                }
+            } catch (err) {
+                showError("❌ Network error verifying OTP.");
+            }
+        }
+
+        // =========================================================
+        // PASSWORD LOGIN
+        // =========================================================
+        async function handlePasswordLogin() {
+            clearError();
+            var phone = document.getElementById('login-phone').value.trim();
+            var pwd = document.getElementById('login-pwd').value.trim();
+
+            if (!phone || !pwd) {
+                showError("❌ Please enter both your phone number and password!");
+                return;
+            }
+
+            try {
+                var res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email_or_phone: phone, password: pwd })
+                });
+                var d = await res.json();
+                if (d.success) {
+                    dismissToast();
+                    setCurrentUser(d.user);
+                } else {
+                    showError(d.error || "❌ Invalid phone number or password!");
+                }
+            } catch (err) {
+                showError("❌ Connection error logging in.");
+            }
+        }
+
+        // =========================================================
+        // REQUEST OTP (REGISTER)
+        // =========================================================
+        async function requestRegisterOTP() {
+            clearError();
+            var phone = document.getElementById('reg-phone').value.trim();
+            if (!phone) {
+                showError("❌ Please enter your mobile phone number first!");
+                return;
+            }
+
+            var btn = document.getElementById('btn-reg-otp');
+            if (btn) btn.innerText = "⏳ Sending...";
+
+            try {
+                var res = await fetch('/api/auth/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: phone, mode: 'register' })
+                });
+                var d = await res.json();
+                if (d.success) {
+                    lastSentPhone = phone;
+                    startTimer(60, 'reg-otp-timer-box', 'reg-timer-sec', 'btn-reg-otp');
+                    
+                    var pDisp = document.getElementById('reg-otp-phone-display');
+                    if (pDisp) pDisp.innerText = phone;
+                    var timerBox = document.getElementById('reg-otp-timer-box');
+                    if (timerBox) timerBox.classList.remove('hidden');
+
+                    var codeBox = document.getElementById('reg-otp');
+                    if (codeBox) codeBox.focus();
+
+                    playSMSChime();
+                    showToast("CELLULAR SMS DISPATCHED", "✓ 6-Digit OTP sent via Cellular SMS to " + phone + ". Please check your phone's SMS inbox.", false);
+                } else {
+                    if (btn) btn.innerHTML = "📲 GET OTP";
+                    showError(d.error || "Failed to send OTP!");
+                }
+            } catch (err) {
+                if (btn) btn.innerHTML = "📲 GET OTP";
+                showError("❌ Network error requesting OTP.");
+            }
+        }
+
+        // =========================================================
+        // COMPLETE REGISTRATION
+        // =========================================================
+        async function handleRegisterSubmit() {
+            clearError();
+            var name = document.getElementById('reg-name').value.trim();
+            var phone = document.getElementById('reg-phone').value.trim();
+            var otp = document.getElementById('reg-otp').value.trim();
+            var pwd = document.getElementById('reg-password').value.trim();
+            var blood = document.getElementById('reg-blood').value;
+            var famPhone = document.getElementById('reg-fam-phone').value.trim();
+
+            if (!name) {
+                showError("❌ Please enter your full name!");
+                return;
+            }
+            if (!phone) {
+                showError("❌ Please enter your phone number!");
+                return;
+            }
+            if (!otp) {
+                showError("❌ Please click 'GET OTP' and enter the 6-digit code received on your phone!");
+                return;
+            }
+            if (!pwd) {
+                showError("❌ Please create a secret password!");
+                return;
+            }
+
+            try {
+                var res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        phone: phone,
+                        otp: otp,
+                        password: pwd,
+                        blood_group: blood,
+                        emergency_phone: famPhone
+                    })
+                });
+                var d = await res.json();
+                if (d.success) {
+                    if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+                    dismissToast();
+                    showToast("REGISTRATION COMPLETE", "✓ Citizen Account Registered & Verified! Welcome to DisasterGuard.", false);
+                    setCurrentUser(d.user);
+                } else {
+                    showError(d.error || "❌ Registration failed!");
+                }
+            } catch (err) {
+                showError("❌ Network error during registration.");
+            }
+        }
+
+        // =========================================================
+        // CITIZEN SESSION & LOGOUT
+        // =========================================================
+        function setCurrentUser(user) {
+            currentUser = user;
+            sessionStorage.setItem('disasterguard_citizen_session', JSON.stringify(user));
+            localStorage.removeItem('disasterguard_citizen');
+
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('citizen-dashboard').classList.remove('hidden');
+
+            document.getElementById('dash-user-name').innerText = user.name;
+            document.getElementById('dash-user-phone').innerText = user.email_or_phone;
+            document.getElementById('dash-user-blood').innerText = user.blood_group || 'O+';
+            if (user.emergency_contact_phone) {
+                document.getElementById('family-phone-input').value = user.emergency_contact_phone;
+            }
+
+            initCitizenMap();
+            startHardwareGPS();
+            refreshUserDatabase();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            sessionStorage.removeItem('disasterguard_citizen_session');
+            localStorage.removeItem('disasterguard_citizen');
+            document.getElementById('citizen-dashboard').classList.add('hidden');
+            document.getElementById('auth-container').classList.remove('hidden');
+            setAuthTab('login');
+            clearError();
+            if (activeCountdownInterval) clearInterval(activeCountdownInterval);
+        }
+
+        // =========================================================
+        // MOBILE TACTICAL GIS MAP & MULTI-TYPE BASE LAYERS
+        // =========================================================
+        var citizenBaseLayers = {};
+        var currentCitizenBaseLayer = null;
+
+        function setupCitizenBaseLayers() {
+            citizenBaseLayers.satellite = L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri',
+                    maxZoom: 19
+                }),
+                L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19
+                })
+            ]);
+
+            citizenBaseLayers.streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+
+            citizenBaseLayers.terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenTopoMap',
+                maxZoom: 17
+            });
+
+            citizenBaseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+        }
+
+        function setCitizenMapBaseLayer(type) {
+            if (!citizenMap) return;
+            if (currentCitizenBaseLayer) {
+                citizenMap.removeLayer(currentCitizenBaseLayer);
+            }
+            if (citizenBaseLayers[type]) {
+                currentCitizenBaseLayer = citizenBaseLayers[type];
+                currentCitizenBaseLayer.addTo(citizenMap);
+            }
+            ['satellite', 'streets', 'terrain', 'dark'].forEach(function(t) {
+                var btn = document.getElementById('cbtn-map-' + t);
+                if (btn) {
+                    if (t === type) {
+                        btn.className = "px-2 py-0.5 rounded bg-cyan-600 text-white font-bold transition-all shadow";
+                    } else {
+                        btn.className = "px-2 py-0.5 rounded text-slate-300 hover:text-white transition-all";
+                    }
+                }
+            });
+        }
+
+        function initCitizenMap() {
+            if (citizenMap) {
+                setTimeout(function() { citizenMap.invalidateSize(); }, 300);
+                return;
+            }
+
+            try {
+                var defaultLat = 26.1445;
+                var defaultLng = 91.7362;
+
+                setupCitizenBaseLayers();
+                citizenMap = L.map('citizen-map', {
+                    zoomControl: false,
+                    attributionControl: false
+                }).setView([defaultLat, defaultLng], 13);
+
+                currentCitizenBaseLayer = citizenBaseLayers.satellite;
+                currentCitizenBaseLayer.addTo(citizenMap);
+
+                L.control.zoom({ position: 'topright' }).addTo(citizenMap);
+
+                // Flood Inundation Danger Zone
+                var floodZone = L.polygon([
+                    [26.1950, 91.7300],
+                    [26.2050, 91.7650],
+                    [26.1850, 91.7800],
+                    [26.1750, 91.7450]
+                ], {
+                    color: '#ef4444',
+                    fillColor: '#ef4444',
+                    fillOpacity: 0.35,
+                    weight: 2,
+                    dashArray: '5, 5'
+                }).addTo(citizenMap);
+                floodZone.bindPopup("<b class='text-red-400'>⚠️ CRITICAL FLOOD INUNDATION ZONE</b><br>Brahmaputra river overflow. Avoid this area!");
+
+                // Safe Evacuation Corridor
+                var safeRoute = L.polyline([
+                    [26.1445, 91.7362],
+                    [26.1550, 91.7700]
+                ], {
+                    color: '#10b981',
+                    weight: 4,
+                    dashArray: '8, 8',
+                    opacity: 0.8
+                }).addTo(citizenMap);
+                safeRoute.bindPopup("<b class='text-emerald-400'>🟢 SAFE EVACUATION CORRIDOR</b><br>Elevated GS Road Highway to GMCH Shelter.");
+
+                // Safe Shelters
+                var shelters = [
+                    { name: "GMCH Emergency Complex", lat: 26.1550, lng: 91.7700, elev: "58m", cap: "850" },
+                    { name: "Cotton University Camp", lat: 26.1900, lng: 91.7500, elev: "54m", cap: "600" },
+                    { name: "Kamakhya Hilltop Sanctuary", lat: 26.1660, lng: 91.7050, elev: "182m", cap: "1500" }
+                ];
+
+                shelters.forEach(function(s) {
+                    var shelterIcon = L.divIcon({
+                        className: 'custom-shelter-icon',
+                        html: '<div style="background:#10b981; border:2px solid #fff; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 0 10px #10b981;">🏛️</div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    });
+                    var m = L.marker([s.lat, s.lng], { icon: shelterIcon }).addTo(citizenMap);
+                    m.bindPopup("<div style='font-size:11px; line-height:1.4;'><b style='color:#34d399;'>🏛️ " + s.name + "</b><br>Elevation: <b>" + s.elev + " (HIGH GROUND)</b><br>Capacity: <b>" + s.cap + " Persons</b><br><a href='https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng + "' target='_blank' style='display:inline-block; margin-top:5px; background:#059669; color:#fff; padding:3px 8px; border-radius:6px; font-weight:bold; text-decoration:none;'>🧭 1-Tap Google Maps</a></div>");
+                });
+
+                // User GPS Marker
+                var userIcon = L.divIcon({
+                    className: 'user-marker-container',
+                    html: '<div class="user-gps-pulse"></div>',
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+                userMarker = L.marker([defaultLat, defaultLng], { icon: userIcon }).addTo(citizenMap);
+                userMarker.bindPopup("<b style='color:#38bdf8;'>📍 YOUR LIVE GPS LOCATION</b>");
+
+                setTimeout(function() { citizenMap.invalidateSize(); }, 400);
+            } catch(e) {
+                console.warn("Map setup notice:", e);
+            }
+        }
+
+        function centerOnUserGPS() {
+            if (citizenMap && lastKnownCoords.lat) {
+                citizenMap.setView([lastKnownCoords.lat, lastKnownCoords.lng], 15);
+                if (userMarker) {
+                    userMarker.setLatLng([lastKnownCoords.lat, lastKnownCoords.lng]);
+                    userMarker.openPopup();
+                }
+            }
+        }
+
+        // =========================================================
+        // HARDWARE GPS
+        // =========================================================
+        function startHardwareGPS() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    updateCoords(pos.coords);
+                }, function(err) {
+                    console.log("GPS Notice:", err.message);
+                }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+
+                watchId = navigator.geolocation.watchPosition(function(pos) {
+                    updateCoords(pos.coords);
+                }, null, { enableHighAccuracy: true });
+            }
+        }
+
+        function updateCoords(c) {
+            lastKnownCoords = {
+                lat: c.latitude,
+                lng: c.longitude,
+                accuracy: Math.round(c.accuracy)
+            };
+            document.getElementById('lat-display').innerText = lastKnownCoords.lat.toFixed(4);
+            document.getElementById('lng-display').innerText = lastKnownCoords.lng.toFixed(4);
+            document.getElementById('gps-acc-badge').innerText = "±" + lastKnownCoords.accuracy + "m";
+            document.getElementById('gps-box').classList.remove('hidden');
+
+            if (userMarker) {
+                userMarker.setLatLng([lastKnownCoords.lat, lastKnownCoords.lng]);
+            }
+        }
+
+        // =========================================================
+        // EMERGENCY AUDIO SIREN
+        // =========================================================
+        function unlockAudio() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                document.getElementById('audio-pill').innerText = "ARMED";
+                document.getElementById('audio-pill').className = "text-[9px] font-mono bg-emerald-700 text-white px-2 py-0.5 rounded font-bold";
+                document.getElementById('audio-auth-banner').style.borderColor = "#10b981";
+                showToast("CIVIL DEFENSE SIREN", "✓ Emergency Siren successfully armed for alerts.", false);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function playEASSiren() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                var osc1 = audioContext.createOscillator();
+                var osc2 = audioContext.createOscillator();
+                var gain = audioContext.createGain();
+                osc1.frequency.value = 853;
+                osc2.frequency.value = 960;
+                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.9, audioContext.currentTime + 0.5);
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+                osc1.start();
+                osc2.start();
+                setTimeout(function() { osc1.stop(); osc2.stop(); }, 4000);
+            } catch (e) {}
+        }
+
+        // =========================================================
+        // TRANSMIT SOS TO CONTROL ROOM
+        // =========================================================
+        async function triggerControlRoomSOS() {
+            if (!currentUser) return;
+
+            var isVulnerable = document.getElementById('is-vulnerable').checked;
+            document.getElementById('gps-box').classList.remove('hidden');
+
+            var uniqueId = "SOS-" + Date.now() + "-" + Math.floor(Math.random() * 9000 + 1000);
+            var payload = {
+                id: uniqueId,
+                user_id: currentUser.id,
+                name: currentUser.name,
+                phone: currentUser.email_or_phone,
+                lat: Number(lastKnownCoords.lat),
+                lng: Number(lastKnownCoords.lng),
+                accuracy: Number(lastKnownCoords.accuracy),
+                vulnerable: isVulnerable,
+                target: "CONTROL_ROOM"
+            };
+
+            document.getElementById('step-1').className = "bg-emerald-900 border border-emerald-500 text-emerald-300 py-1.5 px-1 rounded font-bold";
+            document.getElementById('step-2').className = "bg-yellow-900 border border-yellow-500 text-yellow-300 py-1.5 px-1 rounded font-bold animate-pulse";
+            document.getElementById('rescue-status-detail').innerHTML = "<b>🚨 SOS Transmitted:</b> Telemetry packet streaming directly to Lead Engineer Purbayan Pal (Control Room).";
+
+            playEASSiren();
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "SOS_SIGNAL", ...payload }));
+            }
+
+            try {
+                var res = await fetch('/api/sos/transmit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                var d = await res.json();
+                if (d.success) {
+                    refreshUserDatabase();
+                    showToast("EMERGENCY SOS TRANSMITTED", "✓ Lead Engineer Purbayan Pal has received your satellite GPS coordinates on the Tactical GIS Command Map.", false);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // =========================================================
+        // FAMILY ALERTS (WHATSAPP / SMS)
+        // =========================================================
+        function sendFamilyWhatsApp() {
+            var phone = document.getElementById('family-phone-input').value.replace(/[^0-9]/g, '');
+            var lat = lastKnownCoords.lat.toFixed(5);
+            var lng = lastKnownCoords.lng.toFixed(5);
+            var mapPin = "https://maps.google.com/?q=" + lat + "," + lng;
+            var text = encodeURIComponent("🚨 CRITICAL EMERGENCY SOS: I am trapped in the flood zone and need assistance! My live GPS location is: " + mapPin + ". Please alert local disaster rescue authorities!");
+            var url = phone ? "https://api.whatsapp.com/send?phone=" + phone + "&text=" + text : "https://api.whatsapp.com/send?text=" + text;
+            window.open(url, '_blank');
+        }
+
+        function sendFamilySMS() {
+            var phone = document.getElementById('family-phone-input').value.trim();
+            var lat = lastKnownCoords.lat.toFixed(5);
+            var lng = lastKnownCoords.lng.toFixed(5);
+            var text = encodeURIComponent("EMERGENCY SOS: I need help in the flood zone! GPS: " + lat + ", " + lng + " (Map: https://maps.google.com/?q=" + lat + "," + lng + ")");
+            var targetNumber = phone || "112";
+            window.location.href = "sms:" + targetNumber + "?body=" + text;
+        }
+
+        // =========================================================
+        // 2-WAY INTERCOM
+        // =========================================================
+        async function refreshUserDatabase() {
+            if (!currentUser) return;
+            try {
+                var res = await fetch('/api/user/data?user_id=' + currentUser.id);
+                var d = await res.json();
+                if (d.success) {
+                    renderUserChatHistory(d.chat_history);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderUserChatHistory(chats) {
+            var container = document.getElementById('client-chat-messages');
+            if (!chats || chats.length === 0) return;
+            container.innerHTML = '';
+            chats.forEach(function(c) { appendChatMessage(c); });
+        }
+
+        async function sendClientChatMessage() {
+            if (!currentUser) return;
+            var input = document.getElementById('client-chat-input');
+            var text = input.value.trim();
+            if (!text) return;
+
+            var uniqueId = "MSG-" + Date.now() + "-" + Math.floor(Math.random() * 9000 + 1000);
+            var payload = {
+                id: uniqueId,
+                user_id: currentUser.id,
+                sender: currentUser.name,
+                role: "citizen",
+                text: text
+            };
+
+            input.value = '';
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "INTERCOM_MESSAGE", ...payload }));
+            }
+
+            try {
+                await fetch('/api/intercom/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {}
+        }
+
+        function appendChatMessage(c) {
+            var container = document.getElementById('client-chat-messages');
+            var isAdmin = c.role === 'admin';
+            var msg = document.createElement('div');
+            msg.className = "p-1.5 rounded text-[11px] font-mono " + (isAdmin ? 'bg-cyan-950 border border-cyan-500/40 text-cyan-200 ml-4' : 'bg-slate-800 text-slate-200 mr-4');
+            msg.innerHTML = "<div class='flex justify-between text-[9px] " + (isAdmin ? 'text-cyan-300 font-bold' : 'text-emerald-400 font-semibold') + "'><span>" + c.sender + "</span><span class='text-slate-400'>" + (c.timestamp || '') + "</span></div><div class='mt-0.5'>" + c.text + "</div>";
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // =========================================================
+        // DYNAMIC CITIZEN TELEMETRY & FLOOD THREAT METER
+        // =========================================================
+        function updateCitizenTelemetry(t, manholes) {
+            if (!t) return;
+            var rlEl = document.getElementById('client-river-level');
+            if (rlEl && t.gauge_level_m) rlEl.innerText = Number(t.gauge_level_m).toFixed(2) + " m";
+
+            var disEl = document.getElementById('client-discharge');
+            if (disEl && t.discharge_m3s) disEl.innerText = Number(t.discharge_m3s).toLocaleString() + " m³/s";
+
+            var prEl = document.getElementById('client-precip');
+            if (prEl && t.precip_rate_mmh !== undefined) prEl.innerText = Number(t.precip_rate_mmh).toFixed(1) + " mm/h";
+
+            var lagEl = document.getElementById('client-lag');
+            if (lagEl && t.basin_lag_hours) lagEl.innerText = Number(t.basin_lag_hours).toFixed(1) + " Hours";
+
+            // Update Threat Gauge
+            var badge = document.getElementById('client-threat-badge');
+            var text = document.getElementById('client-threat-text');
+            var bar = document.getElementById('client-threat-bar');
+            var dis = Number(t.discharge_m3s || 21450);
+
+            if (dis >= 42000) {
+                if (badge) { badge.className = "text-[9px] bg-red-950 text-red-300 border border-red-500/70 px-2 py-0.5 rounded font-bold animate-pulse"; badge.innerText = "CRITICAL BREACH"; }
+                if (text) { text.className = "text-red-400 font-bold animate-pulse"; text.innerText = "LEVEL 3 (CRITICAL EVACUATION)"; }
+                if (bar) { bar.className = "h-full bg-red-500 transition-all duration-500"; bar.style.width = "95%"; }
+            } else if (dis >= 35000) {
+                if (badge) { badge.className = "text-[9px] bg-yellow-950 text-yellow-300 border border-yellow-500/70 px-2 py-0.5 rounded font-bold"; badge.innerText = "WARNING ALERT"; }
+                if (text) { text.className = "text-yellow-400 font-bold"; text.innerText = "LEVEL 2 (MODERATE FLOOD SURGE)"; }
+                if (bar) { bar.className = "h-full bg-yellow-500 transition-all duration-500"; bar.style.width = "65%"; }
+            } else {
+                if (badge) { badge.className = "text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/70 px-2 py-0.5 rounded font-bold"; badge.innerText = "SAFE FLOW"; }
+                if (text) { text.className = "text-emerald-400 font-bold"; text.innerText = "LEVEL 1 (NORMAL BASELINE)"; }
+                if (bar) { bar.className = "h-full bg-emerald-500 transition-all duration-500"; bar.style.width = "38%"; }
+            }
+
+            // Update Municipal Sump Drainage Alert for Citizens
+            if (manholes && manholes.length > 0) {
+                var critCount = manholes.filter(function(m) { return m.base_stress > 85; }).length;
+                var drainEl = document.getElementById('client-drainage-text');
+                if (drainEl) {
+                    if (critCount > 0) {
+                        drainEl.innerHTML = "City Drainage: <b class='text-red-400'>" + critCount + " Sump Nodes Critical</b>. Low-lying roads subject to backflow!";
+                    } else {
+                        drainEl.innerHTML = "City Drainage: <b class='text-emerald-400'>All Sump Nodes Normal</b>. Roads clear of backflow.";
+                    }
+                }
+            }
+        }
+
+        async function fetchInitialTelemetry() {
+            try {
+                var res = await fetch('/api/telemetry/live');
+                var d = await res.json();
+                if (d && d.telemetry) updateCitizenTelemetry(d.telemetry, d.manholes);
+            } catch(e) {}
+        }
+
+        // =========================================================
+        // WEBSOCKET
+        // =========================================================
+        function initWebSocket() {
+            var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            var wsUrl = proto + '//' + window.location.host + '/ws';
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                var el = document.getElementById('conn-status');
+                if (el) {
+                    el.innerText = "LIVE MESH";
+                    el.className = "text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded";
+                }
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    var data = JSON.parse(event.data);
+                    if (data.type === "INITIAL_SYNC") {
+                        if (data.telemetry) updateCitizenTelemetry(data.telemetry, data.manholes);
+                    } else if (data.type === "TELEMETRY_UPDATE") {
+                        if (data.telemetry) updateCitizenTelemetry(data.telemetry, data.manholes);
+                    } else if (data.type === "SOS_STATUS_UPDATE") {
+                        if (data.status === "ACKNOWLEDGED") {
+                            document.getElementById('step-2').className = "bg-blue-900 border border-blue-500 text-blue-300 py-1.5 px-1 rounded font-bold";
+                            document.getElementById('rescue-status-detail').innerHTML = "<b class='text-blue-400'>✓ Acknowledged:</b> " + data.message;
+                        } else if (data.status === "DISPATCHED") {
+                            document.getElementById('step-3').className = "bg-emerald-900 border border-emerald-500 text-emerald-300 py-1.5 px-1 rounded font-bold";
+                            document.getElementById('rescue-status-detail').innerHTML = "<b class='text-emerald-400'>🚀 SQUAD EN ROUTE:</b> " + (data.assigned_unit || 'NDRF Boat') + ". Stay on high ground!";
+                        }
+                    } else if (data.type === "NEW_INTERCOM_MESSAGE") {
+                        if (!currentUser || data.chat.user_id === currentUser.id || data.chat.role === 'admin') {
+                            appendChatMessage(data.chat);
+                        }
+                    }
+                } catch(e) {}
+            };
+
+            ws.onclose = function() {
+                var el = document.getElementById('conn-status');
+                if (el) {
+                    el.innerText = "RECONNECTING...";
+                    el.className = "text-[10px] font-mono bg-red-950 text-red-400 border border-red-500/30 px-2 py-0.5 rounded";
+                }
+                setTimeout(initWebSocket, 3000);
+            };
+        }
+
+        // =========================================================
+        // INITIALIZATION
+        // =========================================================
+        window.onload = function() {
+            initWebSocket();
+            fetchInitialTelemetry();
+            localStorage.removeItem('disasterguard_citizen');
+
+            var sessionData = sessionStorage.getItem('disasterguard_citizen_session');
+            if (sessionData) {
+                try {
+                    var parsed = JSON.parse(sessionData);
+                    setCurrentUser(parsed);
+                } catch (e) {
+                    handleLogout();
+                }
+            } else {
+                document.getElementById('citizen-dashboard').classList.add('hidden');
+                document.getElementById('auth-container').classList.remove('hidden');
+                setAuthTab('login');
+            }
+        };
+    </script>
+</body>
+</html>

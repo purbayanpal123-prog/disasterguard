@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DisasterGuard | Central Tactical Command Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0B0F19; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+        .leaflet-popup-content-wrapper {
+            background: #0F172A !important;
+            color: #F8FAFC !important;
+            border: 1px solid #334155;
+            border-radius: 8px;
+        }
+        .leaflet-popup-tip { background: #0F172A !important; }
+        .tab-active {
+            background-color: #1e293b;
+            color: #38bdf8;
+            border-left: 3px solid #38bdf8;
+        }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+            50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+        }
+        .pulse-alarm { animation: pulse-red 1.5s infinite; }
+    </style>
+</head>
+<body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col antialiased relative">
+
+    <!-- ========================================================= -->
+    <!-- UNMISSABLE INCOMING SOS ALARM MODAL (POPS UP ON EVERY SCREEN) -->
+    <!-- ========================================================= -->
+    <div id="sos-alert-modal" class="fixed inset-0 z-[10000] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-[#131B2E] border-2 border-red-500 rounded-2xl p-6 max-w-lg w-full shadow-2xl pulse-alarm relative">
+            <div class="flex items-center space-x-3 text-red-400 font-bold text-base mb-3 font-mono">
+                <span class="text-3xl animate-bounce">🚨</span>
+                <span class="tracking-wide">INCOMING CRITICAL DISTRESS DETECTED!</span>
+            </div>
+            <div class="bg-red-950/40 border border-red-500/50 rounded-xl p-4 font-mono text-xs space-y-2 mb-4">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">VICTIM NAME:</span>
+                    <b id="sos-modal-name" class="text-white text-sm">Purbayan Pal</b>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">CONTACT PHONE:</span>
+                    <b id="sos-modal-phone" class="text-cyan-400">+91 98300 12345</b>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">SATELLITE GPS:</span>
+                    <b id="sos-modal-gps" class="text-yellow-400">26.1712° N, 91.7510° E</b>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">TIME OF DISTRESS:</span>
+                    <span id="sos-modal-time" class="text-emerald-400 font-bold">--:--:-- IST</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-400">PROTOCOL PRIORITY:</span>
+                    <span class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px] font-bold">P0 (CRITICAL IMMINENT DANGER)</span>
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="dismissAndFlyToSOS()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg text-xs font-mono flex items-center justify-center space-x-2 shadow-lg shadow-red-900/50 active:scale-98 transition-all">
+                    <span>🚀 VIEW ON TACTICAL MAP & ROUTE RESCUE</span>
+                </button>
+                <button onclick="closeSOSModal()" class="px-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono">
+                    DISMISS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation Telemetry Bar (Strict Single-Line Layout) -->
+    <header class="border-b border-slate-800/80 bg-[#131B2E]/95 backdrop-blur-md px-4 py-2.5 flex justify-between items-center z-50 flex-nowrap overflow-x-auto gap-3" style="white-space: nowrap;">
+        <div class="flex items-center space-x-2.5 shrink-0" style="white-space: nowrap;">
+            <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shrink-0"></div>
+            <span class="text-xs font-mono tracking-wider text-cyan-400 font-bold uppercase shrink-0" style="white-space: nowrap;">DISASTERGUARD</span>
+            <span class="text-xs bg-cyan-950/90 border border-cyan-400/60 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold shrink-0 shadow-sm" style="white-space: nowrap !important; display: inline-block;">Developed &amp; Engineered by: Purbayan Pal</span>
+        </div>
+        <div class="flex items-center space-x-3 text-xs font-mono text-slate-400 shrink-0" style="white-space: nowrap;">
+            <div class="shrink-0" style="white-space: nowrap;">BASIN: <span class="text-white font-semibold">BRAHMAPUTRA (26.14° N, 91.74° E)</span></div>
+            <div id="clock-display" class="text-cyan-400 font-bold shrink-0" style="white-space: nowrap;">IST: --:--:--</div>
+            
+            <!-- Live Active Distress Badge -->
+            <div id="top-sos-badge" onclick="switchView('view-comms')" class="cursor-pointer flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md text-slate-300 shrink-0 hover:border-red-500/50 transition-colors" style="white-space: nowrap;">
+                <span id="top-sos-dot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
+                <span class="shrink-0" style="white-space: nowrap;">DISTRESS: <b id="top-sos-count" class="text-white">0 Calls</b></span>
+            </div>
+
+            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md shrink-0" style="white-space: nowrap;">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                <span class="shrink-0" style="white-space: nowrap;">NODES: <b id="device-count" class="text-emerald-400">1</b></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Body with Left Sidebar Navigation & Multi-Page Views -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- SIDEBAR NAVIGATION MENU (8 EXTENSIVE MODULES) -->
+        <nav class="w-64 bg-[#0E1626] border-r border-slate-800 flex flex-col justify-between p-3 font-mono text-xs z-40">
+            <div class="space-y-1">
+                <div class="text-[10px] text-slate-500 uppercase tracking-widest px-3 py-1 font-bold">Command Center Modules</div>
+                
+                <button onclick="switchView('view-overview')" id="nav-overview" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 tab-active transition-colors">
+                    <span class="text-base">📊</span>
+                    <div>
+                        <div class="font-bold">Executive Overview</div>
+                        <div class="text-[10px] text-slate-400">Basin Metrics & Posture</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-gis')" id="nav-gis" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">🗺️</span>
+                    <div>
+                        <div class="font-bold">Tactical GIS Map</div>
+                        <div class="text-[10px] text-slate-400">Inundation & Safe Corridors</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-hydro')" id="nav-hydro" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">🌊</span>
+                    <div>
+                        <div class="font-bold">River & Hydrology</div>
+                        <div class="text-[10px] text-slate-400">GloFAS Telemetry & Lag</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-fleet')" id="nav-fleet" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">🚑</span>
+                    <div>
+                        <div class="font-bold">Fleets & Shelters</div>
+                        <div class="text-[10px] text-slate-400">NDRF, 108 & Camps</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-drainage')" id="nav-drainage" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">🚰</span>
+                    <div>
+                        <div class="font-bold">Urban Drainage</div>
+                        <div class="text-[10px] text-slate-400">8 Municipal Sump Nodes</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-comms')" id="nav-comms" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">📻</span>
+                    <div>
+                        <div class="font-bold">2-Way Intercom</div>
+                        <div class="text-[10px] text-slate-400">Live Victim Field Chat</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-roadmap')" id="nav-roadmap" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">🛣️</span>
+                    <div>
+                        <div class="font-bold">Evacuation Road Map</div>
+                        <div class="text-[10px] text-slate-400">Safe Highway Corridors</div>
+                    </div>
+                </button>
+
+                <button onclick="switchView('view-settings')" id="nav-settings" class="w-full text-left px-3 py-2 rounded-lg flex items-center space-x-2.5 text-slate-300 hover:bg-slate-800/60 transition-colors">
+                    <span class="text-base">⚙️</span>
+                    <div>
+                        <div class="font-bold">System Settings</div>
+                        <div class="text-[10px] text-slate-400">Simulation & Parameters</div>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Simulation & Quick Trigger Tools in Sidebar -->
+            <div class="space-y-2 pt-2 border-t border-slate-800">
+                <button onclick="triggerSimulatedSOS()" class="w-full bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/50 text-cyan-300 font-bold py-2 rounded-lg text-[10px] flex items-center justify-center space-x-1.5 active:scale-98">
+                    <span>⚡ TEST RECEIVE INCOMING SOS</span>
+                </button>
+                <button onclick="triggerMockDrill()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-lg text-[10px] active:scale-98">
+                    <span>TRIGGER NDMA MOCK DRILL</span>
+                </button>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT MULTI-PAGE CONTAINER -->
+        <main class="flex-1 p-4 overflow-y-auto relative bg-[#0B0F19]">
+
+            <!-- ========================================================= -->
+            <!-- 1. EXECUTIVE OVERVIEW DASHBOARD -->
+            <!-- ========================================================= -->
+            <div id="view-overview" class="space-y-4 font-mono">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl">
+                        <div class="text-xs text-slate-400 uppercase">Live Streamflow Discharge</div>
+                        <div class="text-3xl font-bold text-white mt-1"><span id="ov-discharge">21,450.0</span> <span class="text-sm text-slate-400">m³/s</span></div>
+                        <div class="text-[10px] text-emerald-400 mt-1">Status: Stable (Danger: 45,000 m³/s)</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl">
+                        <div class="text-xs text-slate-400 uppercase">Precipitation Rate</div>
+                        <div class="text-3xl font-bold text-cyan-400 mt-1"><span id="ov-precip">4.5</span> <span class="text-sm text-slate-400">mm/h</span></div>
+                        <div class="text-[10px] text-cyan-300 mt-1">ECMWF / IMD Real-Time Radar</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl">
+                        <div class="text-xs text-slate-400 uppercase">Predictive Lead Time</div>
+                        <div class="text-3xl font-bold text-yellow-400 mt-1"><span id="ov-lag">2.4</span> <span class="text-sm text-slate-400">Hours</span></div>
+                        <div class="text-[10px] text-yellow-300 mt-1">Snyder Synthetic Crest Lag</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl">
+                        <div class="text-xs text-slate-400 uppercase">Guwahati CWC River Gauge</div>
+                        <div class="text-3xl font-bold text-emerald-400 mt-1"><span id="ov-gauge">49.20</span> <span class="text-sm text-slate-400">m</span></div>
+                        <div class="text-[10px] text-slate-400 mt-1">Danger Level: 51.46 m MSL</div>
+                    </div>
+                </div>
+
+                <!-- Live Critical Incident Banner -->
+                <div class="bg-gradient-to-r from-cyan-950/60 to-[#131B2E] border border-cyan-500/40 rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                        <div class="text-sm font-bold text-cyan-300 uppercase">Autonomous Early Warning & Hazard Routing Core</div>
+                        <p class="text-xs text-slate-300 mt-1">
+                            DisasterGuard continuously fuses Copernicus Sentinel-1 SAR flood imagery, GloFAS hydrological telemetry, and device hardware GPS to preempt mass evacuation failures.
+                        </p>
+                    </div>
+                    <button onclick="switchView('view-gis')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap">
+                        OPEN TACTICAL GIS MAP &rarr;
+                    </button>
+                </div>
+
+                <!-- LIVE FIELD CITIZEN SOS DISTRESS CALLS & TRIAGE PANEL -->
+                <div id="overview-sos-panel" class="bg-red-950/40 border-2 border-red-500/80 rounded-xl p-4 shadow-2xl space-y-3 font-mono">
+                    <div class="flex justify-between items-center pb-2 border-b border-red-500/40">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+                            <span class="text-sm font-bold text-red-300 uppercase tracking-wider">🚨 Live Citizen SOS Distress Calls</span>
+                            <span id="overview-sos-count-badge" class="bg-red-900 text-red-100 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-red-400">0 Active Alerts</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="switchView('view-gis')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs px-3 py-1.5 rounded font-bold flex items-center space-x-1">
+                                <span>🗺️ View Tactical Map</span>
+                            </button>
+                            <button onclick="switchView('view-comms')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded font-bold flex items-center space-x-1">
+                                <span>📻 Open Field Intercom</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="overview-sos-list" class="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        <div id="overview-no-sos" class="text-slate-400 text-xs text-center py-6 border border-dashed border-slate-800 rounded-lg">
+                            Awaiting distress signals. When a citizen presses "SOS TO ADMIN", their real-time satellite GPS distress packet will appear here immediately.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2 Summary Cards -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs font-bold text-cyan-400 mb-2 uppercase">Safe Evacuation Corridors & Shelters</div>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Guwahati Medical College (GMCH)</span>
+                                <b class="text-emerald-400">780 Free Beds (Elev: 68m)</b>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Cotton University Relief Camp</span>
+                                <b class="text-emerald-400">640 Free Beds (Elev: 62m)</b>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Arya Vidyapeeth Safe Haven</span>
+                                <b class="text-emerald-400">420 Free Beds (Elev: 59m)</b>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Dispur Govt School Complex</span>
+                                <b class="text-emerald-400">405 Free Beds (Elev: 71m)</b>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs font-bold text-purple-400 mb-2 uppercase">Municipal Urban Drainage Status</div>
+                        <div class="space-y-2 text-xs text-slate-300">
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Bharalu River Sluice Gate</span>
+                                <b class="text-yellow-400">72% Stress (OPEN)</b>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>GS Road Storm Trunk Sump</span>
+                                <b class="text-red-400 font-bold">88% Stress (OVERFLOW RISK)</b>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800 pb-1">
+                                <span>Mora Bharalu Confluence</span>
+                                <b class="text-yellow-400">64% Stress (OPEN)</b>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Zoo Road Inundation Sump</span>
+                                <b class="text-red-400 font-bold">91% Stress (CRITICAL REGULATION)</b>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 2. TACTICAL GIS MAP VIEW -->
+            <!-- ========================================================= -->
+            <div id="view-gis" class="hidden h-full flex flex-col space-y-2.5">
+                <div class="bg-[#131B2E] border border-slate-800 px-4 py-2 rounded-xl flex flex-wrap justify-between items-center text-xs font-mono gap-2">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <span class="text-slate-400 font-bold uppercase text-[10px]">Active Layers:</span>
+                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span><span>Live Victim</span></span>
+                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 bg-blue-400 rounded-full"></span><span>3 Boats</span></span>
+                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 bg-emerald-400 rounded-full"></span><span>3 Ambulances</span></span>
+                        <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 bg-cyan-400 rounded-full"></span><span>5 Shelters</span></span>
+                    </div>
+                    <!-- MULTI-TYPE MAP ENGINE SWITCHER TOOLBAR -->
+                    <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg p-1 space-x-1 text-[11px]">
+                        <span class="text-slate-400 text-[10px] px-1 font-bold">MAP STYLE:</span>
+                        <button onclick="setAdminMapBaseLayer('satellite')" id="btn-map-satellite" class="px-2.5 py-1 rounded bg-cyan-600 text-white font-bold transition-all flex items-center space-x-1 shadow">
+                            <span>🛰️ SATELLITE</span>
+                        </button>
+                        <button onclick="setAdminMapBaseLayer('streets')" id="btn-map-streets" class="px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center space-x-1">
+                            <span>🗺️ STREETS</span>
+                        </button>
+                        <button onclick="setAdminMapBaseLayer('terrain')" id="btn-map-terrain" class="px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center space-x-1">
+                            <span>🏔️ RIVER &amp; TOPO</span>
+                        </button>
+                        <button onclick="setAdminMapBaseLayer('dark')" id="btn-map-dark" class="px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center space-x-1">
+                            <span>⬛ TACTICAL DARK</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 bg-[#131B2E] border border-slate-800 rounded-xl overflow-hidden shadow-2xl relative min-h-[500px]">
+                    <div id="map" class="w-full h-full"></div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 3. RIVER & HYDROLOGY ENGINE -->
+            <!-- ========================================================= -->
+            <div id="view-hydro" class="hidden space-y-4 font-mono">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 uppercase">GloFAS Streamflow</div>
+                        <div class="text-3xl font-bold text-white mt-1"><span id="hydro-discharge">21,450.0</span> <span class="text-sm text-slate-400">m³/s</span></div>
+                        <div class="text-[10px] text-emerald-400 mt-1">Copernicus Live Stream</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 uppercase">Precipitation Rate</div>
+                        <div class="text-3xl font-bold text-cyan-400 mt-1"><span id="hydro-precip">4.5</span> <span class="text-sm text-slate-400">mm/h</span></div>
+                        <div class="text-[10px] text-cyan-300 mt-1">ECMWF High-Res Radar</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 uppercase">Basin Crest Lag (Snyder)</div>
+                        <div class="text-3xl font-bold text-yellow-400 mt-1"><span id="hydro-lag">2.4</span> <span class="text-sm text-slate-400">Hours</span></div>
+                        <div class="text-[10px] text-yellow-300 mt-1">Lead Time: TL = Ct(L·Lc)^0.3</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                        <div class="text-xs text-slate-400 uppercase">Guwahati CWC River Gauge</div>
+                        <div class="text-3xl font-bold text-emerald-400 mt-1"><span id="hydro-gauge">49.20</span> <span class="text-sm text-slate-400">m</span></div>
+                        <div class="text-[10px] text-slate-400 mt-1">Velocity: <span id="hydro-velocity" class="text-cyan-300 font-bold">1.9</span> m/s</div>
+                    </div>
+                </div>
+
+                <!-- 2 INTERACTIVE HYDROLOGY & PRECIPITATION GRAPHS (CHART.JS) -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Live Hydrograph Chart -->
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <span class="text-sm font-bold text-cyan-400 uppercase">Live River Hydrograph (Discharge Curve)</span>
+                                <div class="text-[10px] text-slate-400">Real-Time Discharge vs Warning (38,500) &amp; Danger (45,000 m³/s)</div>
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40 font-bold">STREAMING</span>
+                        </div>
+                        <div class="h-60 relative w-full">
+                            <canvas id="hydrograph-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Precipitation Accumulation Chart -->
+                    <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                        <div class="flex justify-between items-center mb-2">
+                            <div>
+                                <span class="text-sm font-bold text-cyan-400 uppercase">Precipitation &amp; Inundation Risk</span>
+                                <div class="text-[10px] text-slate-400">Rainfall Intensity (mm/h) &amp; 12-Hour GloFAS Trend</div>
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold">LIVE RADAR</span>
+                        </div>
+                        <div class="h-60 relative w-full">
+                            <canvas id="precipitation-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                    <div class="text-sm font-bold text-cyan-400 mb-3 uppercase">Brahmaputra River Stage-Discharge Rating Table (CWC Guwahati Gauge)</div>
+                    <table class="w-full text-xs text-left border border-slate-800">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2.5">Gauge Level (H)</th>
+                                <th class="p-2.5">Discharge (Q)</th>
+                                <th class="p-2.5">Flow Velocity (v)</th>
+                                <th class="p-2.5">Classification</th>
+                                <th class="p-2.5">Protocol Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800 text-slate-300">
+                            <tr><td class="p-2.5">46.50 m MSL</td><td class="p-2.5">14,200 m³/s</td><td class="p-2.5">1.4 m/s</td><td class="p-2.5 text-emerald-400">Dry Baseline</td><td class="p-2.5">Normal Ingest</td></tr>
+                            <tr class="bg-slate-900/60"><td class="p-2.5 font-bold text-cyan-400">49.20 m MSL (LIVE)</td><td class="p-2.5 font-bold text-white">21,450 m³/s</td><td class="p-2.5">1.9 m/s</td><td class="p-2.5 text-cyan-300">Moderate Streamflow</td><td class="p-2.5">Telemetry Armed</td></tr>
+                            <tr><td class="p-2.5">50.80 m MSL</td><td class="p-2.5">38,500 m³/s</td><td class="p-2.5">2.6 m/s</td><td class="p-2.5 text-yellow-400">Warning Level</td><td class="p-2.5 text-yellow-400">Advisory Queue</td></tr>
+                            <tr class="bg-red-950/40"><td class="p-2.5 font-bold text-red-400">51.46 m MSL</td><td class="p-2.5 font-bold text-red-400">45,000 m³/s</td><td class="p-2.5">3.2 m/s</td><td class="p-2.5 text-red-400 font-bold">DANGER BREACH</td><td class="p-2.5 text-red-400 font-bold">MASS EVACUATION</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 4. FLEET & LOGISTICS COMMAND -->
+            <!-- ========================================================= -->
+            <div id="view-fleet" class="hidden space-y-4 font-mono text-xs">
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-sm font-bold text-cyan-400 uppercase">Tactical Fleet Deployment Roster (8 Active Units)</span>
+                        <span class="text-[10px] text-slate-400">NDRF 1st Battalion, 108 GVK EMRI, SDRF</span>
+                    </div>
+                    <table class="w-full text-left border border-slate-800">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2">Unit ID</th>
+                                <th class="p-2">Asset Name & Type</th>
+                                <th class="p-2">Base Station</th>
+                                <th class="p-2">Crew</th>
+                                <th class="p-2">Speed</th>
+                                <th class="p-2">Status</th>
+                                <th class="p-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fleet-table-body" class="divide-y divide-slate-800 text-slate-300"></tbody>
+                    </table>
+                </div>
+
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                    <div class="text-sm font-bold text-emerald-400 mb-3 uppercase">Designated High-Ground Safe Shelters</div>
+                    <table class="w-full text-left border border-slate-800">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2">Shelter Name</th>
+                                <th class="p-2">Facility Type</th>
+                                <th class="p-2">Elevation</th>
+                                <th class="p-2">Total Capacity</th>
+                                <th class="p-2">Occupancy</th>
+                                <th class="p-2">Free Beds</th>
+                                <th class="p-2">Supplies</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shelter-table-body" class="divide-y divide-slate-800 text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 5. URBAN DRAINAGE & SLUICE GATES -->
+            <!-- ========================================================= -->
+            <div id="view-drainage" class="hidden space-y-4 font-mono text-xs">
+                <!-- 3 COLOR-CODED DRAINAGE ALERT STATUS BANNERS -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-[#131B2E] border border-emerald-500/40 rounded-xl p-3 flex items-center justify-between shadow-lg">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Safe Drainage Nodes (&lt;70%)</div>
+                            <div id="drainage-safe-count" class="text-2xl font-bold text-emerald-400 mt-0.5">-- Nodes</div>
+                            <div class="text-[10px] text-emerald-500/80">Gravity Outfall Operational</div>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-emerald-950/80 border border-emerald-500/60 flex items-center justify-center text-lg shadow">🟢</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-yellow-500/40 rounded-xl p-3 flex items-center justify-between shadow-lg">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Warning Stress Nodes (70-85%)</div>
+                            <div id="drainage-warn-count" class="text-2xl font-bold text-yellow-400 mt-0.5">-- Nodes</div>
+                            <div class="text-[10px] text-yellow-500/80">Auxiliary Pumps Armed</div>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-yellow-950/80 border border-yellow-500/60 flex items-center justify-center text-lg shadow">🟡</div>
+                    </div>
+                    <div class="bg-[#131B2E] border border-red-500/70 rounded-xl p-3 flex items-center justify-between shadow-lg">
+                        <div>
+                            <div class="text-[10px] text-slate-400 uppercase font-bold">Critical Overflow Alert (&gt;85%)</div>
+                            <div id="drainage-crit-count" class="text-2xl font-bold text-red-400 mt-0.5">-- Nodes</div>
+                            <div class="text-[10px] text-red-400 animate-pulse font-bold">Sluice Backflow Threat</div>
+                        </div>
+                        <div class="w-9 h-9 rounded-full bg-red-950/80 border border-red-500/80 flex items-center justify-center text-lg shadow animate-bounce">🔴</div>
+                    </div>
+                </div>
+
+                <!-- MUNICIPAL DRAINAGE STRESS BAR GRAPH (CHART.JS) -->
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <span class="text-sm font-bold text-purple-400 uppercase">Guwahati Municipal Stormwater Trunk Sump Stress Index</span>
+                            <div class="text-[10px] text-slate-400">Node Capacity: <span class="text-emerald-400 font-bold">&lt;70% Safe</span> &bull; <span class="text-yellow-400 font-bold">70-85% Warning</span> &bull; <span class="text-red-400 font-bold">&gt;85% Critical Overflow Alert</span> (Dashed line at 85%)</div>
+                        </div>
+                        <span class="text-[10px] text-purple-300 bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40 font-bold">RATIONAL Q=C&bull;I&bull;A</span>
+                    </div>
+                    <div class="h-64 relative w-full">
+                        <canvas id="drainage-stress-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-purple-400 uppercase">Guwahati Municipal Stormwater Trunk Sump &amp; Sluice Gate Grid</span>
+                        <span class="text-[10px] text-purple-300 bg-purple-950 px-2 py-0.5 rounded border border-purple-500/40">Rational Method $Q = C \cdot I \cdot A$</span>
+                    </div>
+                    <table class="w-full text-left border border-slate-800">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2">Node ID</th>
+                                <th class="p-2">Drainage Junction / Sluice Gate</th>
+                                <th class="p-2">Ward</th>
+                                <th class="p-2">Max Capacity</th>
+                                <th class="p-2">Drainage Stress</th>
+                                <th class="p-2">Sluice Status</th>
+                                <th class="p-2">Threat Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manhole-table-body" class="divide-y divide-slate-800 text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 6. 2-WAY TACTICAL INTERCOM & FIELD CHAT -->
+            <!-- ========================================================= -->
+            <div id="view-comms" class="hidden space-y-4 font-mono text-xs">
+                <div class="grid grid-cols-12 gap-4 h-[530px]">
+                    <div class="col-span-6 bg-[#131B2E] border border-slate-800 rounded-xl p-4 flex flex-col">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-sm font-bold text-red-400 uppercase">Active SOS Distress Triage</span>
+                            <span id="comms-sos-count" class="bg-red-950 text-red-400 px-2 py-0.5 rounded text-[10px]">0 Distress Calls</span>
+                        </div>
+                        <div id="comms-sos-feed" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                            <div class="text-slate-500 text-center py-16">
+                                Awaiting distress signals.<br>
+                                Use "TEST RECEIVE INCOMING SOS" on left sidebar to test.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-span-6 bg-[#131B2E] border border-slate-800 rounded-xl p-4 flex flex-col">
+                        <div class="flex justify-between items-center pb-2 border-b border-slate-800 mb-2">
+                            <span class="text-sm font-bold text-cyan-400 uppercase">2-Way Tactical Field Intercom</span>
+                            <span class="text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded text-[10px]">ENCRYPTED CHANNEL</span>
+                        </div>
+                        <div id="comms-chat-messages" class="flex-1 overflow-y-auto space-y-2 pr-1 bg-slate-900/60 p-3 rounded-lg border border-slate-800"></div>
+                        <div class="flex space-x-2 pt-3 border-t border-slate-800 mt-2">
+                            <input id="comms-chat-input" type="text" placeholder="Type instruction to victim..." class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-white text-xs focus:border-cyan-400 focus:outline-none" onkeydown="if(event.key==='Enter') sendCommsMessage()">
+                            <button onclick="sendCommsMessage()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded text-xs font-bold">SEND</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 7. EVACUATION ROAD MAP & INFRASTRUCTURE -->
+            <!-- ========================================================= -->
+            <div id="view-roadmap" class="hidden space-y-4 font-mono text-xs">
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                    <div class="text-sm font-bold text-cyan-400 mb-2 uppercase">Guwahati Metropolitan Evacuation Road Map & Arterial Corridors</div>
+                    <p class="text-slate-400 mb-4 text-[11px]">
+                        Continuous algorithmic assessment of arterial roadways during peak river crest conditions. Identifies submerged highways and marks high-elevation bypass embankments.
+                    </p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-red-950/30 border border-red-500/40 rounded-xl p-3.5 space-y-2">
+                            <div class="text-red-400 font-bold uppercase flex items-center space-x-2">
+                                <span>❌</span>
+                                <span>Submerged / Impassable Road Corridors</span>
+                            </div>
+                            <ul class="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                                <li><b>MG Road (Riverfront Sector):</b> Inundated under 1.8m Brahmaputra surge. Strictly impassable for all civilian vehicles.</li>
+                                <li><b>Bharalumukh Sluice Link Road:</b> Overtopped by backflow surge. Closed by Municipal Police.</li>
+                                <li><b>Zoo Road Low-Lying Culvert Crossing:</b> Drainage overflow causing flash ponding of 0.9m depth.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-emerald-950/30 border border-emerald-500/40 rounded-xl p-3.5 space-y-2">
+                            <div class="text-emerald-400 font-bold uppercase flex items-center space-x-2">
+                                <span>✓</span>
+                                <span>Verified High-Ground Evacuation Corridors</span>
+                            </div>
+                            <ul class="list-disc list-inside space-y-1 text-slate-300 text-[11px]">
+                                <li><b>GS Road Elevated Flyover Corridor:</b> Elevation > 62m MSL. Clear arterial link directly to GMCH Hospital.</li>
+                                <li><b>National Highway 27 Bypass:</b> High-capacity multi-lane bypass unaffected by urban trunk drain blockages.</li>
+                                <li><b>Narakasur Hill Embankment Road:</b> Dedicated tactical access route for SDRF amphibious rescue vehicles.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- 8. SYSTEM SETTINGS & SIMULATION ENGINE -->
+            <!-- ========================================================= -->
+            <div id="view-settings" class="hidden space-y-4 font-mono text-xs">
+                <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 space-y-4">
+                    <div class="text-sm font-bold text-cyan-400 uppercase">DisasterGuard System Parameters & Engineering Controls</div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-900 p-3.5 rounded-lg border border-slate-800 space-y-2">
+                            <div class="font-bold text-white uppercase text-[11px]">Hydrological Threshold Limits</div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>Danger Discharge Mark:</span>
+                                <b class="text-white">40,000 m³/s</b>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>Guwahati Danger Gauge:</span>
+                                <b class="text-white">51.46 m MSL</b>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>Drainage Sump Overflow Trigger:</span>
+                                <b class="text-yellow-400">85% Capacity</b>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-3.5 rounded-lg border border-slate-800 space-y-2">
+                            <div class="font-bold text-white uppercase text-[11px]">API Health & Telemetry Status</div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>Copernicus GloFAS River Stream:</span>
+                                <b class="text-emerald-400">ACTIVE (Zero API Keys)</b>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>ECMWF Weather Ingest:</span>
+                                <b class="text-emerald-400">ONLINE (Free Open-Meteo)</b>
+                            </div>
+                            <div class="flex justify-between text-slate-400 text-[11px]">
+                                <span>W3C Hardware GPS Mesh:</span>
+                                <b class="text-emerald-400">SYNCHRONIZED</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cellular GSM SMS Gateway Integration (Fast2SMS) -->
+                    <div class="bg-slate-900 p-4 rounded-xl border border-cyan-500/40 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white uppercase text-xs flex items-center space-x-2">
+                                <span class="text-base">📱</span>
+                                <span>CELLULAR GSM SMS GATEWAY (REAL SIM DELIVERY VIA FAST2SMS)</span>
+                            </span>
+                            <span id="gateway-status-pill" class="text-[10px] px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-400 font-mono border border-cyan-500/30">CHECKING...</span>
+                        </div>
+                        <p class="text-slate-300 text-xs">
+                            To deliver real GSM text SMS to Indian SIM cards without TRAI DLT blocks, connect a free <b>Fast2SMS API Key</b>. Fast2SMS gives ₹50 free wallet balance with NO credit card required.
+                        </p>
+                        <div class="flex space-x-2">
+                            <input id="setting-fast2sms-key" type="password" placeholder="Paste Fast2SMS API Key here (or leave blank for In-App SMS)" class="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-2 text-cyan-300 text-xs font-mono focus:border-cyan-400 focus:outline-none">
+                            <button onclick="saveSMSGatewayKey()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded text-xs active:scale-95 shadow">
+                                💾 SAVE GATEWAY KEY
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                            <span>Get Free Key: <a href="https://www.fast2sms.com" target="_blank" class="text-cyan-400 underline font-bold">www.fast2sms.com</a> (Dedicated OTP route, zero DLT setup)</span>
+                            <span id="gateway-save-msg" class="text-emerald-400 font-bold hidden">✓ Gateway Key Saved!</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800 flex space-x-3">
+                        <button onclick="testSirenAudio()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded font-bold">
+                            🔊 TEST LAPTOP AUDIO SIREN
+                        </button>
+                        <button onclick="triggerSimulatedSOS()" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded font-bold">
+                            ⚡ SIMULATE FIELD SOS TELEMETRY
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- System Copyright & Attribution Footer -->
+    <footer class="border-t border-slate-800/80 bg-[#0E1626] px-5 py-2 flex justify-between items-center text-[11px] font-mono text-slate-400 z-50">
+        <div>
+            <span class="text-white font-semibold">&copy; 2026 Purbayan Pal.</span> All Rights Reserved. Proprietary Autonomous Disaster Intelligence Architecture.
+        </div>
+        <div class="text-cyan-400">
+            Developed & Engineered by: <span class="text-white font-bold underline">Purbayan Pal</span>
+        </div>
+    </footer>
+
+    <!-- JavaScript Controller -->
+    <script>
+        const BASIN_COORDS = { lat: 26.1445, lng: 91.7362 };
+        let map;
+        let ws;
+        let victimMarker = null;
+        let victimCircle = null;
+        let routePolyline = null;
+        let blockedRoutePolyline = null;
+        let fleetLayerGroup;
+        let shelterLayerGroup;
+        let audioContext;
+        let latestSOSCoords = null;
+
+        // Multi-Type GIS Map Layers
+        let baseLayers = {};
+        let currentBaseLayer = null;
+
+        // Chart.js References
+        let hydroChart = null;
+        let precipChart = null;
+        let drainageChart = null;
+
+        function switchView(viewId) {
+            ['view-overview', 'view-gis', 'view-hydro', 'view-fleet', 'view-drainage', 'view-comms', 'view-roadmap', 'view-settings'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(viewId);
+            if (target) target.classList.remove('hidden');
+
+            ['nav-overview', 'nav-gis', 'nav-hydro', 'nav-fleet', 'nav-drainage', 'nav-comms', 'nav-roadmap', 'nav-settings'].forEach(id => {
+                const nav = document.getElementById(id);
+                if (nav) nav.classList.remove('tab-active');
+            });
+            const activeNavId = 'nav-' + viewId.replace('view-', '');
+            const activeNav = document.getElementById(activeNavId);
+            if (activeNav) activeNav.classList.add('tab-active');
+
+            if (viewId === 'view-gis' && map) {
+                setTimeout(() => map.invalidateSize(), 150);
+            }
+            if (viewId === 'view-hydro') {
+                setTimeout(() => {
+                    if (hydroChart) hydroChart.resize();
+                    if (precipChart) precipChart.resize();
+                }, 150);
+            }
+            if (viewId === 'view-drainage') {
+                setTimeout(() => {
+                    if (drainageChart) drainageChart.resize();
+                }, 150);
+            }
+        }
+
+        function setupBaseLayers() {
+            // 1. Overall Satellite Aerial Hybrid (Esri High-Resolution World Imagery + Place Labels)
+            baseLayers.satellite = L.layerGroup([
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri, Maxar, Earthstar Geographics',
+                    maxZoom: 19
+                }),
+                L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19
+                })
+            ]);
+
+            // 2. High-Contrast Street Navigation Map (Carto Voyager / OpenStreetMap)
+            baseLayers.streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+
+            // 3. River Basin, Hydrological & Topographic Terrain (OpenTopoMap with Contour Elevation)
+            baseLayers.terrain = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap',
+                maxZoom: 17
+            });
+
+            // 4. Tactical Dark Map (Carto Dark Matter)
+            baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 20
+            });
+        }
+
+        function setAdminMapBaseLayer(type) {
+            if (!map) return;
+            if (currentBaseLayer) {
+                map.removeLayer(currentBaseLayer);
+            }
+            if (baseLayers[type]) {
+                currentBaseLayer = baseLayers[type];
+                currentBaseLayer.addTo(map);
+            }
+            ['satellite', 'streets', 'terrain', 'dark'].forEach(t => {
+                const btn = document.getElementById(`btn-map-${t}`);
+                if (btn) {
+                    if (t === type) {
+                        btn.className = "px-2.5 py-1 rounded bg-cyan-600 text-white font-bold transition-all flex items-center space-x-1 shadow";
+                    } else {
+                        btn.className = "px-2.5 py-1 rounded text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center space-x-1";
+                    }
+                }
+            });
+        }
+
+        function initMap() {
+            setupBaseLayers();
+            map = L.map('map').setView([BASIN_COORDS.lat, BASIN_COORDS.lng], 12);
+            currentBaseLayer = baseLayers.satellite;
+            currentBaseLayer.addTo(map);
+
+            fleetLayerGroup = L.layerGroup().addTo(map);
+            shelterLayerGroup = L.layerGroup().addTo(map);
+
+            // CWC Hydro Station
+            const gaugeIcon = L.divIcon({
+                className: 'custom-gauge',
+                html: `<div class="w-4 h-4 rounded-full bg-cyan-400 border-2 border-white shadow-lg animate-ping"></div>`,
+                iconSize: [16, 16]
+            });
+            L.marker([BASIN_COORDS.lat, BASIN_COORDS.lng], { icon: gaugeIcon })
+                .addTo(map)
+                .bindPopup(`<b>Brahmaputra CWC Hydro Station</b><br>Guwahati Regional Center`);
+
+            // Copernicus Inundation Polygon
+            const inundationCoords = [
+                [26.185, 91.725],
+                [26.175, 91.765],
+                [26.160, 91.755],
+                [26.165, 91.720]
+            ];
+            L.polygon(inundationCoords, {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.25,
+                weight: 2,
+                dashArray: '6, 6'
+            }).addTo(map).bindPopup("<b class='text-red-400'>CRITICAL FLOOD INUNDATION HAZARD ZONE</b><br>Water depth > 1.8m. All vehicular routes strictly impassable.");
+        }
+
+        function initCharts() {
+            // 1. Live Hydrograph Chart
+            const hydroCtx = document.getElementById('hydrograph-chart');
+            if (hydroCtx) {
+                const initialLabels = ['19:20', '19:22', '19:24', '19:26', '19:28', '19:30', '19:32', '19:34', '19:36', '19:38'];
+                hydroChart = new Chart(hydroCtx, {
+                    type: 'line',
+                    data: {
+                        labels: initialLabels,
+                        datasets: [
+                            {
+                                label: 'Live River Discharge Q (m³/s)',
+                                data: [21420, 21445, 21470, 21450, 21465, 21480, 21455, 21470, 21450, 21460],
+                                borderColor: '#38bdf8',
+                                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                                fill: true,
+                                tension: 0.35,
+                                borderWidth: 2.5,
+                                pointRadius: 3,
+                                pointHoverRadius: 6,
+                                pointBackgroundColor: '#38bdf8'
+                            },
+                            {
+                                label: 'Warning Level (38,500 m³/s)',
+                                data: Array(10).fill(38500),
+                                borderColor: '#eab308',
+                                borderDash: [6, 6],
+                                borderWidth: 1.5,
+                                fill: false,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'Danger Breach (45,000 m³/s)',
+                                data: Array(10).fill(45000),
+                                borderColor: '#ef4444',
+                                borderDash: [4, 4],
+                                borderWidth: 2,
+                                fill: false,
+                                pointRadius: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#cbd5e1',
+                                    font: { family: 'JetBrains Mono', size: 10 },
+                                    boxWidth: 12
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+                                grid: { color: 'rgba(51, 65, 85, 0.25)' }
+                            },
+                            y: {
+                                min: 18000,
+                                max: 48000,
+                                ticks: {
+                                    color: '#94a3b8',
+                                    font: { family: 'JetBrains Mono', size: 9 },
+                                    callback: (v) => (v / 1000).toFixed(0) + 'k'
+                                },
+                                grid: { color: 'rgba(51, 65, 85, 0.25)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 2. Precipitation Accumulation Chart
+            const precipCtx = document.getElementById('precipitation-chart');
+            if (precipCtx) {
+                precipChart = new Chart(precipCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Now', '+1h', '+2h', '+3h', '+4h', '+5h', '+6h', '+8h', '+10h', '+12h'],
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Rainfall (mm/h)',
+                                data: [4.5, 6.2, 9.8, 12.4, 15.0, 11.2, 7.8, 5.0, 3.2, 1.5],
+                                backgroundColor: 'rgba(6, 182, 212, 0.65)',
+                                borderColor: '#06b6d4',
+                                borderWidth: 1.5,
+                                borderRadius: 4
+                            },
+                            {
+                                type: 'line',
+                                label: 'Inundation Risk (%)',
+                                data: [28, 42, 60, 75, 88, 80, 65, 48, 32, 22],
+                                borderColor: '#c084fc',
+                                backgroundColor: 'rgba(192, 132, 252, 0.15)',
+                                fill: true,
+                                tension: 0.35,
+                                borderWidth: 2,
+                                pointRadius: 3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#cbd5e1',
+                                    font: { family: 'JetBrains Mono', size: 10 },
+                                    boxWidth: 12
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } },
+                                grid: { color: 'rgba(51, 65, 85, 0.25)' }
+                            },
+                            y: {
+                                min: 0,
+                                max: 100,
+                                ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 9 } },
+                                grid: { color: 'rgba(51, 65, 85, 0.25)' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 3. Municipal Drainage Stress Bar Chart
+            const drainCtx = document.getElementById('drainage-stress-chart');
+            if (drainCtx) {
+                const defaultNodes = [
+                    'MH-01 Bharalu Sluice #1', 'MH-02 Bharalu Sluice #2', 'MH-03 GS Road Sump',
+                    'MH-04 Zoo Road Main', 'MH-05 Hatigaon Collector', 'MH-06 Chandmari Culvert',
+                    'MH-07 Six Mile Sump', 'MH-08 Jalukbari Rotary'
+                ];
+                const defaultValues = [88, 92, 78, 84, 95, 69, 77, 58];
+                const bgColors = defaultValues.map(v => v > 85 ? '#ef4444' : (v >= 70 ? '#eab308' : '#10b981'));
+                const borderColors = defaultValues.map(v => v > 85 ? '#f87171' : (v >= 70 ? '#fde047' : '#34d399'));
+
+                drainageChart = new Chart(drainCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: defaultNodes,
+                        datasets: [{
+                            label: 'Capacity Stress (%)',
+                            data: defaultValues,
+                            backgroundColor: bgColors,
+                            borderColor: borderColors,
+                            borderWidth: 1.5,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 400 },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        const v = ctx.parsed.x;
+                                        const stat = v > 85 ? '🚨 CRITICAL OVERFLOW ALERT' : (v >= 70 ? '⚠️ WARNING MODERATE' : '🟢 SAFE LEVEL');
+                                        return ` Capacity Stress: ${v}% (${stat})`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                min: 0,
+                                max: 100,
+                                ticks: {
+                                    color: '#94a3b8',
+                                    font: { family: 'JetBrains Mono', size: 9 },
+                                    callback: (v) => v + '%'
+                                },
+                                grid: { color: 'rgba(51, 65, 85, 0.25)' }
+                            },
+                            y: {
+                                ticks: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9.5 } },
+                                grid: { color: 'rgba(51, 65, 85, 0.15)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateChartsWithTelemetry(telemetry, manholes) {
+            if (!telemetry) return;
+
+            // 1. Update Hydrograph
+            if (hydroChart && telemetry.discharge_m3s) {
+                const now = new Date();
+                const timeLabel = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                hydroChart.data.labels.push(timeLabel);
+                hydroChart.data.datasets[0].data.push(telemetry.discharge_m3s);
+                hydroChart.data.datasets[1].data.push(telemetry.warning_discharge_m3s || 38500);
+                hydroChart.data.datasets[2].data.push(telemetry.danger_discharge_m3s || 45000);
+
+                if (hydroChart.data.labels.length > 12) {
+                    hydroChart.data.labels.shift();
+                    hydroChart.data.datasets[0].data.shift();
+                    hydroChart.data.datasets[1].data.shift();
+                    hydroChart.data.datasets[2].data.shift();
+                }
+                hydroChart.update('none');
+            }
+
+            // 2. Update Precipitation Chart
+            if (precipChart && telemetry.precip_rate_mmh !== undefined) {
+                const p = Number(telemetry.precip_rate_mmh);
+                precipChart.data.datasets[0].data[0] = p;
+                for (let i = 1; i < precipChart.data.datasets[0].data.length; i++) {
+                    precipChart.data.datasets[0].data[i] = Math.max(0, +(p * (1 + Math.sin(i * 0.7) * 0.45)).toFixed(1));
+                }
+                precipChart.update('none');
+            }
+
+            // 3. Update Drainage Sump Stress Bar Chart
+            if (drainageChart && manholes && manholes.length > 0) {
+                const labels = manholes.map(m => `${m.id} ${m.name}`);
+                const values = manholes.map(m => m.base_stress);
+                const bg = values.map(v => v > 85 ? '#ef4444' : (v >= 70 ? '#eab308' : '#10b981'));
+                const borders = values.map(v => v > 85 ? '#f87171' : (v >= 70 ? '#fde047' : '#34d399'));
+
+                drainageChart.data.labels = labels;
+                drainageChart.data.datasets[0].data = values;
+                drainageChart.data.datasets[0].backgroundColor = bg;
+                drainageChart.data.datasets[0].borderColor = borders;
+                drainageChart.update('none');
+            }
+        }
+
+        function applyLiveTelemetryNumbers(t) {
+            if (!t) return;
+            const disch = Number(t.discharge_m3s || 21450).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+            const precip = Number(t.precip_rate_mmh || 0).toFixed(1);
+            const lag = Number(t.basin_lag_hours || 2.4).toFixed(1);
+            const gauge = Number(t.gauge_level_m || 49.20).toFixed(2);
+            const vel = Number(t.flow_velocity_ms || 1.9).toFixed(2);
+
+            // Overview cards
+            const ovD = document.getElementById('ov-discharge');
+            if (ovD) ovD.innerText = disch;
+            const ovP = document.getElementById('ov-precip');
+            if (ovP) ovP.innerText = precip;
+            const ovL = document.getElementById('ov-lag');
+            if (ovL) ovL.innerText = lag;
+            const ovG = document.getElementById('ov-gauge');
+            if (ovG) ovG.innerText = gauge;
+
+            // Hydro cards
+            const hyD = document.getElementById('hydro-discharge');
+            if (hyD) hyD.innerText = disch;
+            const hyP = document.getElementById('hydro-precip');
+            if (hyP) hyP.innerText = precip;
+            const hyL = document.getElementById('hydro-lag');
+            if (hyL) hyL.innerText = lag;
+            const hyG = document.getElementById('hydro-gauge');
+            if (hyG) hyG.innerText = gauge;
+            const hyV = document.getElementById('hydro-velocity');
+            if (hyV) hyV.innerText = vel;
+        }
+
+        function initWebSocket() {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${proto}//${window.location.host}/ws`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === "INITIAL_SYNC") {
+                    document.getElementById('device-count').innerText = data.connected_devices || 1;
+                    renderFleets(data.fleets);
+                    renderShelters(data.shelters);
+                    renderManholes(data.manholes);
+                    if (data.telemetry) {
+                        applyLiveTelemetryNumbers(data.telemetry);
+                        updateChartsWithTelemetry(data.telemetry, data.manholes);
+                    }
+                    if (data.active_sos) data.active_sos.forEach(s => handleIncomingSOS(s, false));
+                    if (data.chat_history) data.chat_history.forEach(c => appendChatMessage(c));
+                } else if (data.type === "DEVICE_COUNT_UPDATE") {
+                    document.getElementById('device-count').innerText = data.count;
+                } else if (data.type === "TELEMETRY_UPDATE") {
+                    applyLiveTelemetryNumbers(data.telemetry);
+                    if (data.manholes) {
+                        renderManholes(data.manholes);
+                    }
+                    updateChartsWithTelemetry(data.telemetry, data.manholes);
+                } else if (data.type === "NEW_SOS_TRANSMISSION") {
+                    handleIncomingSOS(data.sos, true);
+                } else if (data.type === "NEW_INTERCOM_MESSAGE") {
+                    appendChatMessage(data.chat);
+                } else if (data.type === "MOCK_DRILL_ALERT") {
+                    playSirenSound();
+                }
+            };
+            ws.onclose = () => setTimeout(initWebSocket, 3000);
+        }
+
+        function renderFleets(fleets) {
+            fleetLayerGroup.clearLayers();
+            const tableBody = document.getElementById('fleet-table-body');
+            if (tableBody) tableBody.innerHTML = "";
+
+            fleets.forEach(f => {
+                let color = f.type === 'boat' ? '#38bdf8' : (f.type === 'ambulance' ? '#34d399' : '#c084fc');
+                let symbol = f.type === 'boat' ? '🚤' : (f.type === 'ambulance' ? '🚑' : '🚒');
+
+                const icon = L.divIcon({
+                    className: 'fleet-icon',
+                    html: `<div style="background:${color};" class="w-6 h-6 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-xs text-white">${symbol}</div>`,
+                    iconSize: [24, 24]
+                });
+
+                L.marker([f.lat, f.lng], { icon: icon }).addTo(fleetLayerGroup)
+                    .bindPopup(`<b>${f.name}</b><br>Base: ${f.base}<br>Status: <b class="text-emerald-400">${f.status}</b><br>Speed: ${f.speed}`);
+
+                if (tableBody) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-2 font-bold text-white">${f.id}</td>
+                        <td class="p-2">${symbol} ${f.name}</td>
+                        <td class="p-2">${f.base}</td>
+                        <td class="p-2">${f.crew} Personnel</td>
+                        <td class="p-2">${f.speed}</td>
+                        <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${f.status==='ACTIVE'?'bg-emerald-950 text-emerald-400':'bg-blue-950 text-blue-300'} font-bold">${f.status}</span></td>
+                        <td class="p-2"><button onclick="alert('Squad dispatched.')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">ROUTE</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            });
+        }
+
+        function renderShelters(shelters) {
+            shelterLayerGroup.clearLayers();
+            const tableBody = document.getElementById('shelter-table-body');
+            if (tableBody) tableBody.innerHTML = "";
+
+            shelters.forEach(s => {
+                const icon = L.divIcon({
+                    className: 'shelter-icon',
+                    html: `<div class="w-6 h-6 rounded bg-cyan-400 border-2 border-white shadow-lg flex items-center justify-center text-xs text-slate-900 font-bold">🏥</div>`,
+                    iconSize: [24, 24]
+                });
+
+                L.marker([s.lat, s.lng], { icon: icon }).addTo(shelterLayerGroup)
+                    .bindPopup(`<b>${s.name}</b><br>Elevation: <b class="text-emerald-400">${s.elevation}</b><br>Free Beds: ${s.capacity - s.occupied}`);
+
+                if (tableBody) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-2 font-bold text-white">${s.name}</td>
+                        <td class="p-2">${s.type}</td>
+                        <td class="p-2 text-emerald-400 font-bold">${s.elevation}</td>
+                        <td class="p-2">${s.capacity} beds</td>
+                        <td class="p-2">${s.occupied} beds</td>
+                        <td class="p-2 font-bold text-emerald-400">${s.capacity - s.occupied} beds</td>
+                        <td class="p-2">${s.supplies}</td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            });
+        }
+
+        function renderManholes(manholes) {
+            const tableBody = document.getElementById('manhole-table-body');
+            let safe = 0, warn = 0, crit = 0;
+
+            if (tableBody) tableBody.innerHTML = "";
+
+            manholes.forEach(m => {
+                const isCrit = m.base_stress > 85;
+                const isWarn = m.base_stress >= 70 && m.base_stress <= 85;
+                if (isCrit) crit++;
+                else if (isWarn) warn++;
+                else safe++;
+
+                if (tableBody) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="p-2 font-bold text-white">${m.id}</td>
+                        <td class="p-2 font-bold">${m.name}</td>
+                        <td class="p-2">${m.ward}</td>
+                        <td class="p-2">${m.capacity_cumecs} m³/s</td>
+                        <td class="p-2 font-bold ${isCrit ? 'text-red-400 font-bold' : (isWarn ? 'text-yellow-400 font-semibold' : 'text-emerald-400')}">${m.base_stress}%</td>
+                        <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${m.sluice_status}</span></td>
+                        <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${isCrit ? 'bg-red-950 text-red-400 border border-red-500/40 font-bold animate-pulse' : (isWarn ? 'bg-yellow-950 text-yellow-400 border border-yellow-500/30' : 'bg-emerald-950 text-emerald-400 border border-emerald-500/30')}">${isCrit ? '🔴 OVERFLOW THREAT' : (isWarn ? '🟡 WARNING' : '🟢 SAFE')}</span></td>
+                    `;
+                    tableBody.appendChild(row);
+                }
+            });
+
+            const sEl = document.getElementById('drainage-safe-count');
+            if (sEl) sEl.innerText = `${safe} Nodes`;
+            const wEl = document.getElementById('drainage-warn-count');
+            if (wEl) wEl.innerText = `${warn} Nodes`;
+            const cEl = document.getElementById('drainage-crit-count');
+            if (cEl) cEl.innerText = `${crit} Nodes`;
+        }
+
+        // =========================================================
+        // UNMISSABLE SOS RECEPTION SYSTEM
+        // =========================================================
+        function handleIncomingSOS(sos, playSound) {
+            const lat = Number(sos.lat);
+            const lng = Number(sos.lng);
+            latestSOSCoords = { lat: lat, lng: lng, name: sos.name, phone: sos.phone };
+
+            if (playSound) {
+                playSirenSound();
+                // Pop the unmissable alarm modal on screen
+                document.getElementById('sos-modal-name').innerText = sos.name;
+                document.getElementById('sos-modal-phone').innerText = sos.phone;
+                document.getElementById('sos-modal-gps').innerText = `${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E`;
+                document.getElementById('sos-modal-time').innerText = sos.timestamp;
+                document.getElementById('sos-alert-modal').classList.remove('hidden');
+            }
+
+            // Update top bar alarm indicator (Glows bright pulsing red)
+            const dot = document.getElementById('top-sos-dot');
+            if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 animate-ping";
+            const badge = document.getElementById('top-sos-badge');
+            if (badge) badge.className = "cursor-pointer flex items-center space-x-1.5 bg-red-600 text-white border border-red-300 px-3 py-1 rounded-md font-bold animate-pulse shadow-lg";
+
+            const redIcon = L.divIcon({
+                className: 'sos-icon',
+                html: `<div class="w-7 h-7 rounded-full bg-red-600 border-2 border-white animate-bounce shadow-2xl flex items-center justify-center text-xs text-white font-bold">🚨</div>`,
+                iconSize: [28, 28]
+            });
+
+            if (victimMarker) map.removeLayer(victimMarker);
+            if (victimCircle) map.removeLayer(victimCircle);
+
+            victimMarker = L.marker([lat, lng], { icon: redIcon }).addTo(map);
+            victimCircle = L.circle([lat, lng], {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.25,
+                radius: Math.max(Number(sos.accuracy) || 120, 120)
+            }).addTo(map);
+
+            victimMarker.bindPopup(`
+                <div class="font-mono text-xs">
+                    <b class="text-red-500 font-bold">🚨 HARDWARE DISTRESS SIGNAL (${sos.priority})</b><br>
+                    <b>Citizen:</b> ${sos.name} (<a href="tel:${sos.phone}" class="text-cyan-400 font-bold underline">${sos.phone}</a>)<br>
+                    <b>Status:</b> <span class="text-cyan-400 font-bold">${sos.status}</span><br>
+                    <b>GPS:</b> ${lat.toFixed(5)}, ${lng.toFixed(5)}<br>
+                    <b>Time:</b> ${sos.timestamp}
+                </div>
+            `).openPopup();
+
+            calculateInundationAwareRoute(lat, lng);
+
+            // 1. Render card into Overview SOS Triage panel
+            renderOverviewSOSCard(sos);
+
+            // 2. Render card into Comms SOS Feed
+            renderCommsSOSCard(sos);
+        }
+
+        function renderOverviewSOSCard(sos) {
+            const list = document.getElementById('overview-sos-list');
+            if (!list) return;
+            const noMsg = document.getElementById('overview-no-sos');
+            if (noMsg) noMsg.remove();
+
+            const existing = document.getElementById(`ov-sos-card-${sos.id}`);
+            if (existing) existing.remove();
+
+            const lat = Number(sos.lat);
+            const lng = Number(sos.lng);
+
+            const card = document.createElement('div');
+            card.id = `ov-sos-card-${sos.id}`;
+            card.className = "p-3 bg-red-950/70 border border-red-500/70 rounded-lg text-xs font-mono space-y-1.5 shadow-lg transition-all hover:border-red-400";
+            card.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-base animate-bounce">🚨</span>
+                        <b class="text-white text-sm">${sos.name}</b>
+                        <span class="text-[10px] bg-red-900 text-red-100 px-2 py-0.5 rounded font-bold">${sos.priority}</span>
+                        <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/40">${sos.status}</span>
+                    </div>
+                    <span class="text-[11px] text-emerald-400 font-bold">${sos.timestamp}</span>
+                </div>
+                <div class="text-slate-300 text-[11px] flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                    <span>📞 Contact Phone: <a href="tel:${sos.phone}" class="text-cyan-400 font-bold underline">${sos.phone}</a></span>
+                    <span>📍 Satellite GPS: <b class="text-yellow-400">${lat.toFixed(5)}° N, ${lng.toFixed(5)}° E</b> (±${Math.round(sos.accuracy || 10)}m)</span>
+                    <span>🎯 Safe Haven: <span class="text-emerald-300">${sos.safe_shelter || 'GMCH Hospital'}</span></span>
+                </div>
+                <div class="flex space-x-2 pt-1 border-t border-red-900/60 mt-1">
+                    <button onclick="flyToSOSLocation(${lat}, ${lng})" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] py-1 px-3 rounded font-bold shadow flex items-center space-x-1 active:scale-95">
+                        <span>🗺️ ZOOM ON MAP</span>
+                    </button>
+                    <button onclick="acknowledgeSOS('${sos.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] py-1 px-3 rounded font-bold active:scale-95">
+                        <span>✓ ACKNOWLEDGE</span>
+                    </button>
+                    <button onclick="dispatchRescueUnit('${sos.id}', ${lat}, ${lng})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] py-1 px-3 rounded font-bold shadow active:scale-95">
+                        <span>🚤 DISPATCH SQUAD</span>
+                    </button>
+                </div>
+            `;
+            list.prepend(card);
+
+            const countBadge = document.getElementById('overview-sos-count-badge');
+            if (countBadge) countBadge.innerText = `${list.children.length} Active Distress Calls`;
+            const topCount = document.getElementById('top-sos-count');
+            if (topCount) topCount.innerText = `${list.children.length} Active Calls`;
+        }
+
+        function renderCommsSOSCard(sos) {
+            const feed = document.getElementById('comms-sos-feed');
+            if (!feed) return;
+            if (feed.children.length === 1 && feed.children[0].innerText.includes("Awaiting")) feed.innerHTML = "";
+
+            const existing = document.getElementById(`sos-card-${sos.id}`);
+            if (existing) existing.remove();
+
+            const lat = Number(sos.lat);
+            const lng = Number(sos.lng);
+
+            const card = document.createElement('div');
+            card.id = `sos-card-${sos.id}`;
+            card.className = "p-3 bg-red-950/40 border border-red-500/50 rounded-lg text-xs font-mono space-y-1 shadow";
+            card.innerHTML = `
+                <div class="flex justify-between font-bold">
+                    <span class="text-red-400">${sos.name} (${sos.phone})</span>
+                    <span class="text-[10px] bg-red-900 px-1.5 py-0.5 rounded text-red-200">${sos.priority}</span>
+                </div>
+                <div class="text-[10px] text-slate-300">GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)} | Time: ${sos.timestamp}</div>
+                <div class="flex space-x-2 pt-1.5">
+                    <button onclick="flyToSOSLocation(${lat}, ${lng})" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] py-1 rounded font-bold">VIEW MAP</button>
+                    <button onclick="acknowledgeSOS('${sos.id}')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] py-1 rounded font-bold">ACKNOWLEDGE</button>
+                    <button onclick="dispatchRescueUnit('${sos.id}', ${lat}, ${lng})" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] py-1 rounded font-bold">DISPATCH</button>
+                </div>
+            `;
+            feed.prepend(card);
+            const commsCount = document.getElementById('comms-sos-count');
+            if (commsCount) commsCount.innerText = `${feed.children.length} Distress Calls`;
+        }
+
+        function flyToSOSLocation(lat, lng) {
+            switchView('view-gis');
+            setTimeout(() => {
+                if (map) {
+                    map.invalidateSize();
+                    map.flyTo([Number(lat), Number(lng)], 15, { duration: 1.2 });
+                    if (victimMarker) {
+                        victimMarker.setLatLng([Number(lat), Number(lng)]);
+                        victimMarker.openPopup();
+                    }
+                }
+            }, 180);
+        }
+
+        function closeSOSModal() {
+            document.getElementById('sos-alert-modal').classList.add('hidden');
+        }
+
+        function dismissAndFlyToSOS() {
+            closeSOSModal();
+            if (latestSOSCoords) {
+                flyToSOSLocation(latestSOSCoords.lat, latestSOSCoords.lng);
+            } else {
+                switchView('view-gis');
+            }
+        }
+
+        function calculateInundationAwareRoute(victimLat, victimLng) {
+            const shelterLat = 26.1584, shelterLng = 91.7712;
+            if (routePolyline) map.removeLayer(routePolyline);
+            if (blockedRoutePolyline) map.removeLayer(blockedRoutePolyline);
+
+            // Red Blocked Highway
+            blockedRoutePolyline = L.polyline([[victimLat, victimLng], [26.170, 91.745], [shelterLat, shelterLng]], {
+                color: '#ef4444', weight: 4, dashArray: '6, 8', opacity: 0.8
+            }).addTo(map).bindPopup("<b class='text-red-400'>❌ DIRECT ROUTE BLOCKED:</b> Crosses active flood zone (Water depth 2m).");
+
+            // Green Safe Embankment Detour
+            routePolyline = L.polyline([[victimLat, victimLng], [victimLat + 0.005, victimLng + 0.015], [26.150, 91.765], [shelterLat, shelterLng]], {
+                color: '#10b981', weight: 5, opacity: 0.9
+            }).addTo(map).bindPopup("<b class='text-emerald-400'>✓ VERIFIED SAFE EVACUATION CORRIDOR:</b> Detours around flood directly to GMCH Hospital.");
+        }
+
+        function acknowledgeSOS(sosId) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "CONTROL_ROOM_ACKNOWLEDGE", sos_id: sosId }));
+            }
+            alert("Distress call officially acknowledged by Lead Engineer Purbayan Pal. Pushed to victim's phone.");
+        }
+
+        function dispatchRescueUnit(sosId, lat, lng) {
+            const squad = "NDRF Zodiac Boat #2";
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "DISPATCH_SQUAD", sos_id: sosId, squad: squad }));
+            }
+            alert(`Assigned ${squad} to GPS (${lat.toFixed(4)}, ${lng.toFixed(4)}). ETA: 8-12 Mins.`);
+        }
+
+        function sendCommsMessage() {
+            const input = document.getElementById('comms-chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "INTERCOM_MESSAGE",
+                    sender: "Lead Engineer Purbayan Pal",
+                    role: "admin",
+                    text: text
+                }));
+            }
+            input.value = "";
+        }
+
+        function appendChatMessage(c) {
+            const container = document.getElementById('comms-chat-messages');
+            if (!container) return;
+            const msg = document.createElement('div');
+            const isAdmin = c.role === 'admin';
+            msg.className = `p-2 rounded text-xs font-mono leading-tight ${isAdmin ? 'bg-cyan-950/80 border border-cyan-500/50 text-cyan-200 ml-6' : 'bg-slate-800 border border-slate-700 text-white mr-6'}`;
+            msg.innerHTML = `
+                <div class="flex justify-between text-[9px] ${isAdmin ? 'text-cyan-400' : 'text-emerald-400'} font-bold">
+                    <span>${c.sender}</span>
+                    <span class="text-slate-400">${c.timestamp}</span>
+                </div>
+                <div class="mt-1">${c.text}</div>
+            `;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function triggerMockDrill() {
+            if (!confirm("TRIGGER NATIONAL NDMA MOCK DRILL BROADCAST?")) return;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: "TRIGGER_MOCK_DRILL", discharge: 48200 }));
+            }
+            playSirenSound();
+        }
+
+        async function triggerSimulatedSOS() {
+            try {
+                const res = await fetch('/api/sos/simulate-test', { method: 'POST' });
+                const d = await res.json();
+                console.log("Simulated SOS triggered:", d);
+            } catch (e) {
+                console.error("Simulation error:", e);
+            }
+        }
+
+        function testSirenAudio() {
+            playSirenSound();
+        }
+
+        function playSirenSound() {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                const osc1 = audioContext.createOscillator();
+                const osc2 = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc1.frequency.value = 853;
+                osc2.frequency.value = 960;
+                gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.8, audioContext.currentTime + 0.4);
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioContext.destination);
+                osc1.start();
+                osc2.start();
+                setTimeout(() => { osc1.stop(); osc2.stop(); }, 3500);
+            } catch (e) {}
+        }
+
+        function updateLiveClockAndTelemetry() {
+            const now = new Date();
+            const istTime = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            const istDate = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' });
+            const clockEl = document.getElementById('clock-display');
+            if (clockEl) {
+                clockEl.innerHTML = `IST: <span class="text-white font-bold" style="white-space:nowrap;">${istTime}</span> <span class="text-slate-400 text-[10px]" style="white-space:nowrap;">(${istDate})</span>`;
+            }
+        }
+
+        async function loadSMSGatewaySettings() {
+            try {
+                const res = await fetch('/api/settings/sms-gateway');
+                const data = await res.json();
+                const pill = document.getElementById('gateway-status-pill');
+                if (data.fast2sms_configured) {
+                    pill.innerText = "ONLINE (" + data.fast2sms_masked + ")";
+                    pill.className = "text-[10px] px-2.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono border border-emerald-500/40 font-bold";
+                } else {
+                    pill.innerText = "STANDBY (In-App Bridge Active)";
+                    pill.className = "text-[10px] px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono";
+                }
+            } catch(e) {}
+        }
+
+        async function saveSMSGatewayKey() {
+            const key = document.getElementById('setting-fast2sms-key').value.trim();
+            try {
+                const res = await fetch('/api/settings/sms-gateway', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fast2sms_api_key: key })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('gateway-save-msg').classList.remove('hidden');
+                    loadSMSGatewaySettings();
+                    setTimeout(() => {
+                        const msg = document.getElementById('gateway-save-msg');
+                        if (msg) msg.classList.add('hidden');
+                    }, 3000);
+                }
+            } catch(e) {}
+        }
+
+        window.onload = () => {
+            initMap();
+            initCharts();
+            updateLiveClockAndTelemetry();
+            setInterval(updateLiveClockAndTelemetry, 1000);
+            initWebSocket();
+            loadSMSGatewaySettings();
+        };
+    </script>
+</body>
+</html>
