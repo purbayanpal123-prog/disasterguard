@@ -212,6 +212,33 @@ async def dispatch_telecom_sms(raw_phone: str, otp_code: str) -> Dict[str, Any]:
     if digits.startswith("91") and len(digits) == 12:
         indian_10_digits = digits[2:]
         
+    fast2sms_waba_phone_id = os.getenv("FAST2SMS_WABA_PHONE_ID", "1316907678172934")
+    fast2sms_waba_msg_id = os.getenv("FAST2SMS_WABA_MSG_ID", "32646")
+    
+    # 0. Primary Attempt: Official WhatsApp Business Channel (Rs. 0.25 per OTP, Direct WhatsApp Delivery)
+    if fast2sms_key and fast2sms_waba_phone_id and len(indian_10_digits) == 10:
+        try:
+            wa_url = f"https://www.fast2sms.com/dev/whatsapp?phone_number_id={fast2sms_waba_phone_id}&message_id={fast2sms_waba_msg_id}&numbers={indian_10_digits}&variables_values={otp_code}"
+            headers = {
+                "authorization": fast2sms_key.strip(),
+                "Accept": "application/json"
+            }
+            async with httpx.AsyncClient(verify=False, timeout=8.0) as client:
+                res_wa = await client.get(wa_url, headers=headers)
+                try:
+                    resp_wa = res_wa.json()
+                except Exception:
+                    resp_wa = {}
+                print(f">>> [TELECOM GATEWAY] Fast2SMS WhatsApp response: {resp_wa}")
+                if resp_wa.get("return") is True:
+                    return {
+                        "dispatched": True,
+                        "channel": "Official WhatsApp Business (Direct WhatsApp Delivery - Rs. 0.25)",
+                        "message": f"Real WhatsApp OTP delivered directly to +91 {indian_10_digits}"
+                    }
+        except Exception as e:
+            print("Fast2SMS WhatsApp Dispatch Error:", e)
+
     # 1. Fast2SMS Indian Cellular GSM OTP Route
     if fast2sms_key and len(indian_10_digits) == 10:
         try:
