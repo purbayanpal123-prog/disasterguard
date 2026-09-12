@@ -216,42 +216,48 @@ async def dispatch_telecom_sms(raw_phone: str, otp_code: str) -> Dict[str, Any]:
     if fast2sms_key and len(indian_10_digits) == 10:
         try:
             url = "https://www.fast2sms.com/dev/bulkV2"
-            # 1. Primary: Quick SMS Route 'q' (Direct GSM SMS dispatch with 0 DLT required)
-            payload_q = {
-                "route": "q",
-                "message": f"DisasterGuard Emergency Alert: Your 6-digit verification OTP is {otp_code}. Valid for 60 seconds. Do NOT share with anyone.",
-                "language": "english",
-                "flash": 0,
-                "numbers": indian_10_digits
-            }
             headers = {
                 "authorization": fast2sms_key.strip(),
                 "Content-Type": "application/json"
             }
             async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
-                res = await client.post(url, json=payload_q, headers=headers)
-                resp = res.json()
-                print(f">>> [TELECOM GATEWAY] Fast2SMS Quick Route (q) response for {indian_10_digits}: {resp}")
-                if resp.get("return") is True:
-                    return {
-                        "dispatched": True,
-                        "channel": "GSM Cellular SMS (Fast2SMS Quick Route)",
-                        "message": f"Real GSM cellular SMS delivered directly to +91 {indian_10_digits}"
-                    }
-                
-                # 2. Fallback: OTP Route 'otp'
+                # 1. Primary: Low-cost Dedicated OTP Route 'otp' (Only ~Rs. 0.20-0.25 per SMS)
                 payload_otp = {
                     "route": "otp",
                     "variables_values": otp_code,
                     "numbers": indian_10_digits
                 }
                 res_otp = await client.post(url, json=payload_otp, headers=headers)
-                resp_otp = res_otp.json()
+                try:
+                    resp_otp = res_otp.json()
+                except Exception:
+                    resp_otp = {}
                 print(f">>> [TELECOM GATEWAY] Fast2SMS OTP Route response: {resp_otp}")
                 if resp_otp.get("return") is True:
                     return {
                         "dispatched": True,
-                        "channel": "GSM Cellular SMS (Fast2SMS OTP Route)",
+                        "channel": "GSM Cellular SMS (Fast2SMS OTP Route - Low Cost Rs. 0.25)",
+                        "message": f"Real GSM cellular SMS delivered directly to +91 {indian_10_digits}"
+                    }
+                
+                # 2. Fallback: Quick SMS Route 'q' (Direct GSM SMS with zero verification required, Rs. 5 flat rate)
+                payload_q = {
+                    "route": "q",
+                    "message": f"DisasterGuard Emergency Alert: Your 6-digit verification OTP is {otp_code}. Valid for 60 seconds. Do NOT share with anyone.",
+                    "language": "english",
+                    "flash": 0,
+                    "numbers": indian_10_digits
+                }
+                res_q = await client.post(url, json=payload_q, headers=headers)
+                try:
+                    resp_q = res_q.json()
+                except Exception:
+                    resp_q = {}
+                print(f">>> [TELECOM GATEWAY] Fast2SMS Quick Route (q) response for {indian_10_digits}: {resp_q}")
+                if resp_q.get("return") is True:
+                    return {
+                        "dispatched": True,
+                        "channel": "GSM Cellular SMS (Fast2SMS Quick Route)",
                         "message": f"Real GSM cellular SMS delivered directly to +91 {indian_10_digits}"
                     }
         except Exception as e:
