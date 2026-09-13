@@ -1133,6 +1133,25 @@
                     handleIncomingSOS(data.sos, true);
                 } else if (data.type === "NEW_INTERCOM_MESSAGE") {
                     appendChatMessage(data.chat);
+                } else if (data.type === "SOS_STATUS_UPDATE") {
+                    const badge = document.getElementById(`ov-status-${data.sos_id}`);
+                    if (badge) {
+                        badge.innerText = data.status;
+                        badge.className = `text-[10px] ${data.status === 'DISPATCHED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50 animate-pulse font-bold' : 'bg-blue-950 text-blue-300 border border-blue-500/50 font-bold'} px-2 py-0.5 rounded`;
+                    }
+                    if (data.status === 'ACKNOWLEDGED') {
+                        const btn = document.getElementById(`btn-ack-${data.sos_id}`);
+                        if (btn) {
+                            btn.innerHTML = "<span>✓ ACKNOWLEDGED</span>";
+                            btn.className = "bg-blue-800 text-blue-200 text-[11px] py-1 px-3 rounded font-bold cursor-default";
+                        }
+                    } else if (data.status === 'DISPATCHED') {
+                        const btn = document.getElementById(`btn-disp-${data.sos_id}`);
+                        if (btn) {
+                            btn.innerHTML = "<span>🚀 SQUAD DISPATCHED</span>";
+                            btn.className = "bg-emerald-800 text-emerald-200 text-[11px] py-1 px-3 rounded font-bold shadow cursor-default";
+                        }
+                    }
                 } else if (data.type === "MOCK_DRILL_ALERT") {
                     playSirenSound();
                 }
@@ -1322,7 +1341,7 @@
                         <span class="text-base animate-bounce">🚨</span>
                         <b class="text-white text-sm">${sos.name}</b>
                         <span class="text-[10px] bg-red-900 text-red-100 px-2 py-0.5 rounded font-bold">${sos.priority}</span>
-                        <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/40">${sos.status}</span>
+                        <span id="ov-status-${sos.id}" class="text-[10px] ${sos.status === 'DISPATCHED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/50 animate-pulse font-bold' : (sos.status === 'ACKNOWLEDGED' ? 'bg-blue-950 text-blue-300 border border-blue-500/50 font-bold' : 'bg-cyan-950 text-cyan-300 border border-cyan-500/40')} px-2 py-0.5 rounded">${sos.status}</span>
                     </div>
                     <span class="text-[11px] text-emerald-400 font-bold">${sos.timestamp}</span>
                 </div>
@@ -1335,11 +1354,11 @@
                     <button onclick="flyToSOSLocation(${lat}, ${lng})" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] py-1 px-3 rounded font-bold shadow flex items-center space-x-1 active:scale-95">
                         <span>🗺️ ZOOM ON MAP</span>
                     </button>
-                    <button onclick="acknowledgeSOS('${sos.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-[11px] py-1 px-3 rounded font-bold active:scale-95">
-                        <span>✓ ACKNOWLEDGE</span>
+                    <button id="btn-ack-${sos.id}" onclick="acknowledgeSOS('${sos.id}')" class="${sos.status === 'ACKNOWLEDGED' ? 'bg-blue-800 text-blue-200' : 'bg-blue-600 hover:bg-blue-500 text-white'} text-[11px] py-1 px-3 rounded font-bold active:scale-95">
+                        <span>${sos.status === 'ACKNOWLEDGED' ? '✓ ACKNOWLEDGED' : '✓ ACKNOWLEDGE'}</span>
                     </button>
-                    <button onclick="dispatchRescueUnit('${sos.id}', ${lat}, ${lng})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] py-1 px-3 rounded font-bold shadow active:scale-95">
-                        <span>🚤 DISPATCH SQUAD</span>
+                    <button id="btn-disp-${sos.id}" onclick="dispatchRescueUnit('${sos.id}', ${lat}, ${lng})" class="${sos.status === 'DISPATCHED' ? 'bg-emerald-800 text-emerald-200' : 'bg-emerald-600 hover:bg-emerald-500 text-white'} text-[11px] py-1 px-3 rounded font-bold shadow active:scale-95">
+                        <span>${sos.status === 'DISPATCHED' ? '🚀 SQUAD DISPATCHED' : '🚤 DISPATCH SQUAD'}</span>
                     </button>
                 </div>
             `;
@@ -1425,11 +1444,34 @@
             }).addTo(map).bindPopup("<b class='text-emerald-400'>✓ VERIFIED SAFE EVACUATION CORRIDOR:</b> Detours around flood directly to GMCH Hospital.");
         }
 
+        function showAdminToast(title, msg) {
+            let toast = document.getElementById('admin-live-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'admin-live-toast';
+                toast.className = 'fixed top-4 right-4 z-50 bg-[#0f172a] border-2 border-cyan-500 rounded-xl p-3.5 shadow-2xl text-xs font-mono max-w-sm space-y-1 transition-all';
+                document.body.appendChild(toast);
+            }
+            toast.innerHTML = `<div class="font-bold text-cyan-300 flex items-center space-x-1.5"><span>📡</span><span>${title}</span></div><div class="text-slate-300 text-[11px] leading-relaxed">${msg}</div>`;
+            toast.classList.remove('hidden');
+            setTimeout(() => { if (toast) toast.classList.add('hidden'); }, 4000);
+        }
+
         function acknowledgeSOS(sosId) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "CONTROL_ROOM_ACKNOWLEDGE", sos_id: sosId }));
             }
-            alert("Distress call officially acknowledged by Lead Engineer Purbayan Pal. Pushed to victim's phone.");
+            const btn = document.getElementById(`btn-ack-${sosId}`);
+            if (btn) {
+                btn.innerHTML = "<span>✓ ACKNOWLEDGED</span>";
+                btn.className = "bg-blue-800 text-blue-200 text-[11px] py-1 px-3 rounded font-bold cursor-default";
+            }
+            const badge = document.getElementById(`ov-status-${sosId}`);
+            if (badge) {
+                badge.innerText = "ACKNOWLEDGED";
+                badge.className = "text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded border border-blue-500/40 font-bold";
+            }
+            showAdminToast("✓ DISTRESS ACKNOWLEDGED", "Telemetry confirmed. Official acknowledgment & Intercom message transmitted to citizen.");
         }
 
         function dispatchRescueUnit(sosId, lat, lng) {
@@ -1437,7 +1479,17 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: "DISPATCH_SQUAD", sos_id: sosId, squad: squad }));
             }
-            alert(`Assigned ${squad} to GPS (${lat.toFixed(4)}, ${lng.toFixed(4)}). ETA: 8-12 Mins.`);
+            const btn = document.getElementById(`btn-disp-${sosId}`);
+            if (btn) {
+                btn.innerHTML = "<span>🚀 SQUAD DISPATCHED</span>";
+                btn.className = "bg-emerald-800 text-emerald-200 text-[11px] py-1 px-3 rounded font-bold shadow cursor-default";
+            }
+            const badge = document.getElementById(`ov-status-${sosId}`);
+            if (badge) {
+                badge.innerText = "DISPATCHED";
+                badge.className = "text-[10px] bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40 font-bold animate-pulse";
+            }
+            showAdminToast("🚀 RESCUE SQUAD DISPATCHED", `Tactical fleet (${squad}) assigned. Real-time rescue banner & Intercom dispatched to citizen screen.`);
         }
 
         function sendCommsMessage() {

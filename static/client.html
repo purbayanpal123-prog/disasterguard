@@ -38,7 +38,46 @@
         }
     </style>
 </head>
-<body id="main-body" class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col justify-between p-3.5 max-w-md mx-auto antialiased">
+<body id="main-body" class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col justify-between p-3.5 max-w-md mx-auto antialiased relative">
+
+    <!-- REAL-TIME COMMAND RESCUE MODAL (POPUP ON DISPATCH / ACKNOWLEDGE) -->
+    <div id="rescue-action-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div id="rescue-modal-box" class="bg-[#0f172a] border-2 border-emerald-500 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-emerald-500/40 text-center font-mono space-y-3.5 transform transition-all scale-100">
+            <div id="rescue-modal-icon" class="w-16 h-16 mx-auto rounded-full bg-emerald-950/80 border-2 border-emerald-400 flex items-center justify-center text-3xl animate-bounce">
+                🚤
+            </div>
+            <div>
+                <span id="rescue-modal-badge" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    RESCUE SQUAD DISPATCHED
+                </span>
+                <h3 id="rescue-modal-title" class="text-white text-base font-bold mt-2">Tactical Squad En Route</h3>
+                <p id="rescue-modal-desc" class="text-slate-300 text-xs mt-1.5 leading-relaxed">
+                    Lead Engineer Purbayan Pal has officially dispatched <b class="text-emerald-400" id="rescue-modal-unit">NDRF Zodiac Boat #2</b> to your exact satellite GPS coordinates!
+                </p>
+            </div>
+            
+            <!-- Instructions box -->
+            <div id="rescue-modal-inst" class="bg-slate-900/90 border border-slate-700 p-2.5 rounded-xl text-[11px] text-cyan-300 text-left space-y-1">
+                <div class="font-bold text-white flex items-center space-x-1">
+                    <span>⚠️</span> <span>CRITICAL SURVIVAL DIRECTIVE:</span>
+                </div>
+                <div>1. Move to highest solid ground immediately.</div>
+                <div>2. Keep your phone screen active & watch for beacon lights.</div>
+                <div>3. Estimated Rescue Arrival: <b class="text-emerald-400">8 - 12 Minutes</b>.</div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex flex-col space-y-2 pt-1">
+                <button onclick="jumpToIntercom()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-lg shadow-cyan-600/40 active:scale-95 transition-all">
+                    <span>💬</span>
+                    <span>OPEN DIRECT 2-WAY INTERCOM</span>
+                </button>
+                <button onclick="closeRescueModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2 rounded-xl text-xs active:scale-95 transition-all">
+                    ✕ UNDERSTOOD &amp; CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Top Status Header with Real IST Clock -->
     <header class="border-b border-slate-800 pb-2.5">
@@ -534,6 +573,87 @@
                 o2.start(t + 0.15); o2.stop(t + 0.35);
             } catch(e) {}
             try { if ("vibrate" in navigator) navigator.vibrate([150, 80, 150]); } catch(e) {}
+        }
+
+        function playRescueAlertSound(isDispatch) {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioContext.state === 'suspended') audioContext.resume();
+                var t = audioContext.currentTime;
+                
+                [0, 0.16, 0.32, 0.48].forEach(function(delay, idx) {
+                    var osc = audioContext.createOscillator();
+                    var gain = audioContext.createGain();
+                    osc.type = isDispatch ? 'sawtooth' : 'triangle';
+                    osc.frequency.setValueAtTime(isDispatch ? (750 + idx * 110) : (600 + idx * 75), t + delay);
+                    gain.gain.setValueAtTime(0.35, t + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + delay + 0.13);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.start(t + delay);
+                    osc.stop(t + delay + 0.13);
+                });
+            } catch(e) {}
+            try {
+                if ("vibrate" in navigator) {
+                    navigator.vibrate(isDispatch ? [300, 150, 300, 150, 450] : [200, 100, 200]);
+                }
+            } catch(e) {}
+        }
+
+        function showRescueModal(status, assignedUnit, message) {
+            var modal = document.getElementById('rescue-action-modal');
+            var box = document.getElementById('rescue-modal-box');
+            var icon = document.getElementById('rescue-modal-icon');
+            var badge = document.getElementById('rescue-modal-badge');
+            var title = document.getElementById('rescue-modal-title');
+            var desc = document.getElementById('rescue-modal-desc');
+            var unitEl = document.getElementById('rescue-modal-unit');
+            var inst = document.getElementById('rescue-modal-inst');
+
+            if (!modal) return;
+
+            if (status === 'DISPATCHED') {
+                box.className = "bg-[#0f172a] border-2 border-emerald-500 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-emerald-500/40 text-center font-mono space-y-3.5 transform transition-all scale-100";
+                icon.className = "w-16 h-16 mx-auto rounded-full bg-emerald-950/80 border-2 border-emerald-400 flex items-center justify-center text-3xl animate-bounce";
+                icon.innerText = "🚤";
+                badge.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider";
+                badge.innerText = "🚨 RESCUE SQUAD DISPATCHED";
+                title.innerText = "Tactical Fleet En Route!";
+                if (unitEl) unitEl.innerText = assignedUnit || "NDRF Zodiac Boat #2";
+                desc.innerHTML = "Lead Engineer Purbayan Pal has officially dispatched <b class='text-emerald-400'>" + (assignedUnit || "NDRF Zodiac Boat #2") + "</b> to your exact satellite GPS location!";
+                inst.innerHTML = "<div class='font-bold text-white flex items-center space-x-1'><span>⚠️</span> <span>CRITICAL SURVIVAL DIRECTIVE:</span></div><div>1. Move to highest solid ground immediately.</div><div>2. Keep your phone screen active & watch for beacon lights.</div><div>3. Estimated Rescue Arrival: <b class='text-emerald-400'>8 - 12 Minutes</b>.</div>";
+                playRescueAlertSound(true);
+            } else {
+                box.className = "bg-[#0f172a] border-2 border-blue-500 rounded-2xl p-5 max-w-sm w-full shadow-2xl shadow-blue-500/40 text-center font-mono space-y-3.5 transform transition-all scale-100";
+                icon.className = "w-16 h-16 mx-auto rounded-full bg-blue-950/80 border-2 border-blue-400 flex items-center justify-center text-3xl";
+                icon.innerText = "✓";
+                badge.className = "bg-blue-500/20 text-blue-400 border border-blue-500/40 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider";
+                badge.innerText = "✓ DISTRESS SIGNAL ACKNOWLEDGED";
+                title.innerText = "Control Room Verified Distress Call";
+                desc.innerHTML = (message || "Lead Engineer Purbayan Pal has verified your coordinates.") + "<br><span class='text-cyan-300 font-bold'>Standby: Rescue fleet deployment is active!</span>";
+                inst.innerHTML = "<div class='font-bold text-white flex items-center space-x-1'><span>📡</span> <span>SATELLITE TELEMETRY LOCKED:</span></div><div>1. Emergency Control Room confirmed your GPS fix.</div><div>2. Keep phone battery active & stay in safe corridor.</div>";
+                playRescueAlertSound(false);
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeRescueModal() {
+            var modal = document.getElementById('rescue-action-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function jumpToIntercom() {
+            closeRescueModal();
+            var chatBox = document.getElementById('client-chat-messages');
+            var input = document.getElementById('client-chat-input');
+            if (chatBox) {
+                chatBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                chatBox.classList.add('ring-2', 'ring-cyan-400');
+                setTimeout(function() { chatBox.classList.remove('ring-2', 'ring-cyan-400'); }, 2500);
+            }
+            if (input) input.focus();
         }
 
         function openSMSApp(phoneInputId, codeDisplayId) {
@@ -1343,15 +1463,31 @@
                         if (data.telemetry) updateCitizenTelemetry(data.telemetry, data.manholes);
                     } else if (data.type === "SOS_STATUS_UPDATE") {
                         if (data.status === "ACKNOWLEDGED") {
-                            document.getElementById('step-2').className = "bg-blue-900 border border-blue-500 text-blue-300 py-1.5 px-1 rounded font-bold";
-                            document.getElementById('rescue-status-detail').innerHTML = "<b class='text-blue-400'>✓ Acknowledged:</b> " + data.message;
+                            var s2 = document.getElementById('step-2');
+                            if (s2) s2.className = "bg-blue-600 border border-blue-400 text-white py-1.5 px-1 rounded font-bold shadow-lg shadow-blue-500/50";
+                            var rd = document.getElementById('rescue-status-detail');
+                            if (rd) rd.innerHTML = "<b class='text-blue-300'>✓ 2. ACKNOWLEDGED:</b> " + (data.message || "Lead Engineer Purbayan Pal officially acknowledged distress signal.");
+                            showRescueModal("ACKNOWLEDGED", data.assigned_unit, data.message);
                         } else if (data.status === "DISPATCHED") {
-                            document.getElementById('step-3').className = "bg-emerald-900 border border-emerald-500 text-emerald-300 py-1.5 px-1 rounded font-bold";
-                            document.getElementById('rescue-status-detail').innerHTML = "<b class='text-emerald-400'>🚀 SQUAD EN ROUTE:</b> " + (data.assigned_unit || 'NDRF Boat') + ". Stay on high ground!";
+                            var s2 = document.getElementById('step-2');
+                            if (s2) s2.className = "bg-blue-900/80 border border-blue-700 text-blue-300 py-1.5 px-1 rounded font-bold";
+                            var s3 = document.getElementById('step-3');
+                            if (s3) s3.className = "bg-emerald-600 border border-emerald-400 text-white py-1.5 px-1 rounded font-bold shadow-lg shadow-emerald-500/50 animate-pulse";
+                            var rd = document.getElementById('rescue-status-detail');
+                            if (rd) rd.innerHTML = "<b class='text-emerald-300'>🚀 3. SQUAD EN ROUTE:</b> " + (data.assigned_unit || 'NDRF Zodiac Boat #2') + ". Stay on high ground! ETA: 8-12 Mins.";
+                            showRescueModal("DISPATCHED", data.assigned_unit, data.message);
                         }
                     } else if (data.type === "NEW_INTERCOM_MESSAGE") {
-                        if (!currentUser || data.chat.user_id === currentUser.id || data.chat.role === 'admin') {
+                        if (!currentUser || data.chat.user_id === currentUser.id || data.chat.role === 'admin' || data.chat.user_id === 'broadcast') {
                             appendChatMessage(data.chat);
+                            if (data.chat && data.chat.role === 'admin') {
+                                playSMSChime();
+                                var cBox = document.getElementById('client-chat-messages');
+                                if (cBox) {
+                                    cBox.classList.add('ring-2', 'ring-cyan-400');
+                                    setTimeout(function() { cBox.classList.remove('ring-2', 'ring-cyan-400'); }, 3000);
+                                }
+                            }
                         }
                     }
                 } catch(e) {}

@@ -648,30 +648,83 @@ async def websocket_endpoint(websocket: WebSocket):
             elif action == "CONTROL_ROOM_ACKNOWLEDGE":
                 sos_id = payload.get("sos_id")
                 database.update_sos_status(sos_id, "ACKNOWLEDGED")
+                matched = None
                 for s in manager.active_sos_records:
                     if s["id"] == sos_id:
                         s["status"] = "ACKNOWLEDGED"
+                        matched = s
+                
+                v_name = matched.get("name", "Citizen") if matched else "Citizen"
+                v_phone = matched.get("phone", "") if matched else ""
+                v_uid = matched.get("user_id", "") if matched else ""
+
+                # 1. Automatic 2-Way Intercom Official Message (Zero cost, direct to client chat)
+                chat_item = {
+                    "id": f"MSG-{int(datetime.utcnow().timestamp())}-{random.randint(100, 999)}",
+                    "user_id": v_uid or v_phone or "broadcast",
+                    "sender": "Lead Engineer Purbayan Pal (Control Room)",
+                    "role": "admin",
+                    "text": f"✓ DISTRESS CALL ACKNOWLEDGED: Emergency Control Room has verified your satellite GPS telemetry. Standby, rescue operations are being coordinated! Stay calm.",
+                    "timestamp": get_ist_time()
+                }
+                database.save_chat_message(chat_item)
+                await manager.broadcast({
+                    "type": "NEW_INTERCOM_MESSAGE",
+                    "chat": chat_item
+                })
+
+                # 2. Real-Time High-Priority WebSocket Screen Alert & Timeline Sync
                 await manager.broadcast({
                     "type": "SOS_STATUS_UPDATE",
                     "sos_id": sos_id,
                     "status": "ACKNOWLEDGED",
-                    "message": "Lead Engineer Purbayan Pal has officially acknowledged distress telemetry."
+                    "message": "Lead Engineer Purbayan Pal has officially acknowledged distress telemetry.",
+                    "victim_name": v_name,
+                    "victim_phone": v_phone,
+                    "user_id": v_uid,
+                    "assigned_unit": "Control Room Command"
                 })
 
             elif action == "DISPATCH_SQUAD":
                 sos_id = payload.get("sos_id")
                 unit_name = payload.get("squad", "NDRF Zodiac Boat #2")
                 database.update_sos_status(sos_id, "DISPATCHED", unit_name)
+                matched = None
                 for s in manager.active_sos_records:
                     if s["id"] == sos_id:
                         s["status"] = "DISPATCHED"
                         s["assigned_unit"] = unit_name
+                        matched = s
+
+                v_name = matched.get("name", "Citizen") if matched else "Citizen"
+                v_phone = matched.get("phone", "") if matched else ""
+                v_uid = matched.get("user_id", "") if matched else ""
+
+                # 1. Automatic 2-Way Intercom Official Message (Zero cost, direct to client chat)
+                chat_item = {
+                    "id": f"MSG-{int(datetime.utcnow().timestamp())}-{random.randint(100, 999)}",
+                    "user_id": v_uid or v_phone or "broadcast",
+                    "sender": "Lead Engineer Purbayan Pal (Control Room)",
+                    "role": "admin",
+                    "text": f"🚤 RESCUE SQUAD DISPATCHED: Tactical Unit '{unit_name}' is en route to your GPS coordinates. Estimated Arrival: 8-12 Minutes. Move to highest ground immediately!",
+                    "timestamp": get_ist_time()
+                }
+                database.save_chat_message(chat_item)
+                await manager.broadcast({
+                    "type": "NEW_INTERCOM_MESSAGE",
+                    "chat": chat_item
+                })
+
+                # 2. Real-Time High-Priority WebSocket Screen Alert & Timeline Sync
                 await manager.broadcast({
                     "type": "SOS_STATUS_UPDATE",
                     "sos_id": sos_id,
                     "status": "DISPATCHED",
                     "assigned_unit": unit_name,
-                    "message": f"Assigned Tactical Fleet ({unit_name}) Dispatched. ETA: 8-12 Minutes."
+                    "message": f"Assigned Tactical Fleet ({unit_name}) Dispatched. ETA: 8-12 Minutes.",
+                    "victim_name": v_name,
+                    "victim_phone": v_phone,
+                    "user_id": v_uid
                 })
 
             elif action == "INTERCOM_MESSAGE":
