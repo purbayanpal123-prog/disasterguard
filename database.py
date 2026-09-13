@@ -139,15 +139,28 @@ def authenticate_user(email_or_phone: str, password: str) -> Optional[Dict[str, 
     conn = get_db()
     cursor = conn.cursor()
     pwd_hash = hash_password(password)
+    
+    # 1. Exact match
     cursor.execute("""
         SELECT id, name, email_or_phone, blood_group, emergency_contact_name, emergency_contact_phone, created_at
         FROM users
         WHERE email_or_phone = ? AND password_hash = ?
     """, (email_or_phone.strip(), pwd_hash))
     row = cursor.fetchone()
-    conn.close()
     if row:
+        conn.close()
         return dict(row)
+        
+    # 2. Normalized 10-digit phone match
+    existing = get_user_by_phone(email_or_phone)
+    if existing:
+        cursor.execute("SELECT password_hash FROM users WHERE id = ?", (existing["id"],))
+        r = cursor.fetchone()
+        if r and r["password_hash"] == pwd_hash:
+            conn.close()
+            return existing
+
+    conn.close()
     return None
 
 def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
