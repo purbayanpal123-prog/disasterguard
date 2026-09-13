@@ -1159,7 +1159,95 @@
             ws.onclose = () => setTimeout(initWebSocket, 3000);
         }
 
+        let activeFleetRouteLayer = null;
+
+        function routeFleetUnit(fleetId) {
+            const fleets = window.lastSyncedFleets || [];
+            const fleet = fleets.find(f => f.id === fleetId);
+            if (!fleet) return;
+
+            // 1. Switch directly to Tactical GIS Map view
+            switchView('view-gis');
+
+            setTimeout(() => {
+                if (!map) return;
+                map.invalidateSize();
+
+                // 2. Remove existing route layer if any
+                if (activeFleetRouteLayer) {
+                    map.removeLayer(activeFleetRouteLayer);
+                    activeFleetRouteLayer = null;
+                }
+
+                // 3. Determine destination: Active SOS victim or nearest Crisis Sector / Hospital
+                let destLat, destLng, destName;
+                if (latestSOSCoords) {
+                    destLat = latestSOSCoords.lat;
+                    destLng = latestSOSCoords.lng;
+                    destName = "Active Citizen Distress GPS Fix";
+                } else if (fleet.type === 'boat') {
+                    destLat = 26.1750;
+                    destLng = 91.7550;
+                    destName = "Bharalu River Flood Outfall Sector";
+                } else {
+                    destLat = 26.1584;
+                    destLng = 91.7712;
+                    destName = "GMCH Hospital Trauma Center Safe Haven";
+                }
+
+                // 4. Generate realistic waypoint trajectory
+                const midLat = (Number(fleet.lat) + Number(destLat)) / 2 + (fleet.type === 'boat' ? 0.005 : -0.003);
+                const midLng = (Number(fleet.lng) + Number(destLng)) / 2 + (fleet.type === 'boat' ? -0.004 : 0.005);
+                const waypoints = [
+                    [Number(fleet.lat), Number(fleet.lng)],
+                    [midLat, midLng],
+                    [Number(destLat), Number(destLng)]
+                ];
+
+                // 5. Draw high-visibility glowing tactical route polyline
+                const routeColor = fleet.type === 'boat' ? '#38bdf8' : (fleet.type === 'ambulance' ? '#34d399' : '#f59e0b');
+                const routeLine = L.polyline(waypoints, {
+                    color: routeColor,
+                    weight: 5,
+                    opacity: 0.95,
+                    dashArray: '10, 8',
+                    lineJoin: 'round'
+                });
+
+                // Add destination target pin
+                const destMarker = L.circleMarker([Number(destLat), Number(destLng)], {
+                    radius: 9,
+                    fillColor: '#ef4444',
+                    color: '#ffffff',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).bindPopup(`<div class="font-mono text-xs"><b class="text-red-400">🎯 TARGET DESTINATION</b><br>${destName}<br><b>Assigned Unit:</b> ${fleet.name}<br><b>Speed:</b> ${fleet.speed}<br><b class="text-emerald-400">ETA: 8 - 12 Minutes</b></div>`);
+
+                activeFleetRouteLayer = L.layerGroup([routeLine, destMarker]).addTo(map);
+
+                // 6. Fit bounds so both the unit and the route are clearly in view
+                const bounds = L.latLngBounds([ [Number(fleet.lat), Number(fleet.lng)], [Number(destLat), Number(destLng)] ]).pad(0.25);
+                map.fitBounds(bounds, { maxZoom: 15, duration: 1.2 });
+                destMarker.openPopup();
+
+                // 7. Update the clicked button state in the table
+                const btn = document.getElementById(`btn-fleet-route-${fleet.id}`);
+                if (btn) {
+                    btn.innerHTML = "<span>✓ ROUTING</span>";
+                    btn.className = "bg-emerald-700 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow animate-pulse";
+                }
+
+                // 8. Show HUD notification
+                showAdminToast(
+                    `🗺️ TACTICAL VECTOR: ${fleet.name}`,
+                    `Route active from <b>${fleet.base}</b> towards <b>${destName}</b>. Status: <b>${fleet.status}</b> | Speed: <b>${fleet.speed}</b>.`
+                );
+            }, 180);
+        }
+
         function renderFleets(fleets) {
+            window.lastSyncedFleets = fleets;
             fleetLayerGroup.clearLayers();
             const tableBody = document.getElementById('fleet-table-body');
             if (tableBody) tableBody.innerHTML = "";
@@ -1186,7 +1274,7 @@
                         <td class="p-2">${f.crew} Personnel</td>
                         <td class="p-2">${f.speed}</td>
                         <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] ${f.status==='ACTIVE'?'bg-emerald-950 text-emerald-400':'bg-blue-950 text-blue-300'} font-bold">${f.status}</span></td>
-                        <td class="p-2"><button onclick="alert('Squad dispatched.')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">ROUTE</button></td>
+                        <td class="p-2"><button id="btn-fleet-route-${f.id}" onclick="routeFleetUnit('${f.id}')" class="bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] px-2 py-0.5 rounded font-bold active:scale-95 shadow">ROUTE</button></td>
                     `;
                     tableBody.appendChild(row);
                 }
