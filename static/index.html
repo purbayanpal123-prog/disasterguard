@@ -34,6 +34,12 @@
             50% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
         }
         .pulse-alarm { animation: pulse-red 1.5s infinite; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
     </style>
 </head>
 <body class="bg-[#0B0F19] text-slate-100 min-h-screen flex flex-col antialiased relative">
@@ -80,32 +86,131 @@
         </div>
     </div>
 
-    <!-- Top Navigation Telemetry Bar (Strict Single-Line Layout) -->
-    <header class="border-b border-slate-800/80 bg-[#131B2E]/95 backdrop-blur-md px-4 py-2.5 flex justify-between items-center z-50 flex-nowrap overflow-x-auto gap-3" style="white-space: nowrap;">
-        <div class="flex items-center space-x-2.5 shrink-0" style="white-space: nowrap;">
-            <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shrink-0"></div>
-            <span class="text-xs font-mono tracking-wider text-cyan-400 font-bold uppercase shrink-0" style="white-space: nowrap;">DISASTERGUARD</span>
-            <span class="text-xs bg-cyan-950/90 border border-cyan-400/60 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold shrink-0 shadow-sm" style="white-space: nowrap !important; display: inline-block;">Developed &amp; Engineered by: Purbayan Pal</span>
-        </div>
-        <div class="flex items-center space-x-3 text-xs font-mono text-slate-400 shrink-0" style="white-space: nowrap;">
-            <div class="shrink-0" style="white-space: nowrap;">BASIN: <span class="text-white font-semibold">BRAHMAPUTRA (26.14° N, 91.74° E)</span></div>
-            <div id="clock-display" class="text-cyan-400 font-bold shrink-0" style="white-space: nowrap;">IST: --:--:--</div>
+    <!-- ========================================================= -->
+    <!-- SECURE ADMIN COMMAND ROOM AUTHENTICATION GATE (NO OTP)   -->
+    <!-- ========================================================= -->
+    <div id="admin-auth-container" class="fixed inset-0 z-[99999] bg-[#070B14] flex items-center justify-center p-4 overflow-y-auto">
+        <!-- Ambient tactical background glows -->
+        <div class="absolute w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+        <div id="admin-login-box" class="relative z-10 w-full max-w-md bg-[#0E1626]/95 border-2 border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
             
-            <!-- Live Active Distress Badge -->
-            <div id="top-sos-badge" onclick="switchView('view-comms')" class="cursor-pointer flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md text-slate-300 shrink-0 hover:border-red-500/50 transition-colors" style="white-space: nowrap;">
-                <span id="top-sos-dot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
-                <span class="shrink-0" style="white-space: nowrap;">DISTRESS: <b id="top-sos-count" class="text-white">0 Calls</b></span>
+            <!-- Tactical Crest Header -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-950/80 border-2 border-cyan-500/40 text-3xl shadow-lg shadow-cyan-950 mb-3 animate-pulse">
+                    🛡️
+                </div>
+                <h1 class="text-lg sm:text-xl font-bold font-mono tracking-wider text-white uppercase">
+                    DisasterGuard Tactical HQ
+                </h1>
+                <div class="inline-block mt-1 bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-[10px] font-mono font-bold px-3 py-0.5 rounded-full">
+                    NATIONAL EMERGENCY COMMAND ROOM • RESTRICTED
+                </div>
+                <p class="text-xs text-slate-400 font-mono mt-2">
+                    Authorized Command Personnel Access Only
+                </p>
             </div>
 
-            <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md shrink-0" style="white-space: nowrap;">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                <span class="shrink-0" style="white-space: nowrap;">NODES: <b id="device-count" class="text-emerald-400">1</b></span>
+            <!-- Error Banner (Shown when credentials fail) -->
+            <div id="admin-login-error" class="hidden mb-4 bg-red-950/90 border-2 border-red-500/80 text-red-200 text-xs font-mono p-3.5 rounded-xl shadow-lg shadow-red-950/60 flex items-start space-x-2.5">
+                <span class="text-base leading-none">❌</span>
+                <div id="admin-login-error-text" class="flex-1 font-semibold leading-relaxed">
+                    PASSWORD INVALID: Access Denied.
+                </div>
+            </div>
+
+            <!-- Login Form -->
+            <form onsubmit="event.preventDefault(); handleAdminLogin();" class="space-y-4 font-mono text-xs">
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1.5 flex items-center justify-between">
+                        <span>ADMIN GMAIL / EMAIL ADDRESS</span>
+                        <span class="text-[10px] text-cyan-400 font-normal">GMAIL ONLY</span>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-3 text-slate-500 text-sm">✉️</span>
+                        <input type="email" id="admin-email" value="purbayanpal123@gmail.com" required placeholder="purbayanpal123@gmail.com"
+                            class="w-full bg-[#070B14] border border-slate-700 focus:border-cyan-400 rounded-xl pl-10 pr-3 py-3 text-white text-xs outline-none transition-all placeholder:text-slate-600">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-bold mb-1.5 flex items-center justify-between">
+                        <span>ADMIN MASTER PASSWORD</span>
+                        <button type="button" onclick="toggleAdminPasswordVisibility()" class="text-[10px] text-slate-400 hover:text-cyan-400 transition-colors">
+                            <span id="eye-icon">👁️</span> SHOW
+                        </button>
+                    </label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-3 text-slate-500 text-sm">🔑</span>
+                        <input type="password" id="admin-password" required placeholder="Enter Admin Master Password"
+                            class="w-full bg-[#070B14] border border-slate-700 focus:border-cyan-400 rounded-xl pl-10 pr-3 py-3 text-white text-xs outline-none transition-all placeholder:text-slate-600">
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-admin-login"
+                    class="w-full bg-cyan-500 hover:bg-cyan-400 active:bg-cyan-300 text-slate-950 font-bold py-3.5 rounded-xl text-xs tracking-wider transition-all shadow-lg shadow-cyan-500/25 active:scale-98 flex items-center justify-center space-x-2 cursor-pointer mt-2">
+                    <span>🔐 AUTHENTICATE & ENTER COMMAND ROOM</span>
+                </button>
+            </form>
+
+            <!-- Security Footnotes -->
+            <div class="mt-6 pt-4 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 space-y-2">
+                <div class="flex items-center space-x-2 text-emerald-400/90">
+                    <span>✓</span>
+                    <span>Direct Password Authentication (Zero OTP / ₹0.00 Cost)</span>
+                </div>
+                <div class="flex items-center space-x-2 text-slate-400">
+                    <span>🔒</span>
+                    <span>Auto-Logout Active: Exiting or closing the tab automatically logs out.</span>
+                </div>
+            </div>
+
+            <!-- Bottom author tag -->
+            <div class="mt-4 text-center text-[10px] font-mono text-slate-500">
+                Developed &amp; Engineered by: <span class="text-cyan-400 font-bold">Purbayan Pal</span>
             </div>
         </div>
-    </header>
+    </div>
 
-    <!-- App Body with Left Sidebar Navigation & Multi-Page Views -->
-    <div class="flex-1 flex overflow-hidden">
+    <!-- MAIN ADMIN DASHBOARD WRAPPER (HIDDEN UNTIL AUTHENTICATED) -->
+    <div id="admin-dashboard-wrapper" class="hidden min-h-screen flex flex-col w-full flex-1 relative">
+
+        <!-- Top Navigation Telemetry Bar (Strict Single-Line Layout) -->
+        <header class="border-b border-slate-800/80 bg-[#131B2E]/95 backdrop-blur-md px-4 py-2.5 flex justify-between items-center z-50 flex-nowrap overflow-x-auto gap-3" style="white-space: nowrap;">
+            <div class="flex items-center space-x-2.5 shrink-0" style="white-space: nowrap;">
+                <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping shrink-0"></div>
+                <span class="text-xs font-mono tracking-wider text-cyan-400 font-bold uppercase shrink-0" style="white-space: nowrap;">DISASTERGUARD</span>
+                <span class="text-xs bg-cyan-950/90 border border-cyan-400/60 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold shrink-0 shadow-sm" style="white-space: nowrap !important; display: inline-block;">Developed &amp; Engineered by: Purbayan Pal</span>
+            </div>
+            <div class="flex items-center space-x-3 text-xs font-mono text-slate-400 shrink-0" style="white-space: nowrap;">
+                <div class="shrink-0" style="white-space: nowrap;">BASIN: <span class="text-white font-semibold">BRAHMAPUTRA (26.14° N, 91.74° E)</span></div>
+                <div id="clock-display" class="text-cyan-400 font-bold shrink-0" style="white-space: nowrap;">IST: --:--:--</div>
+                
+                <!-- Live Active Distress Badge -->
+                <div id="top-sos-badge" onclick="switchView('view-comms')" class="cursor-pointer flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md text-slate-300 shrink-0 hover:border-red-500/50 transition-colors" style="white-space: nowrap;">
+                    <span id="top-sos-dot" class="w-2 h-2 rounded-full bg-slate-500 shrink-0"></span>
+                    <span class="shrink-0" style="white-space: nowrap;">DISTRESS: <b id="top-sos-count" class="text-white">0 Calls</b></span>
+                </div>
+
+                <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-md shrink-0" style="white-space: nowrap;">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+                    <span class="shrink-0" style="white-space: nowrap;">NODES: <b id="device-count" class="text-emerald-400">1</b></span>
+                </div>
+
+                <!-- Active Admin Identity Badge & Exit / Logout Button -->
+                <div class="flex items-center space-x-2 bg-slate-900/90 border border-cyan-500/40 px-2.5 py-1 rounded-md shrink-0" style="white-space: nowrap;">
+                    <span class="w-2 h-2 rounded-full bg-cyan-400 shrink-0"></span>
+                    <span class="text-cyan-300 font-bold text-[11px] shrink-0" id="header-admin-name">purbayanpal123@gmail.com</span>
+                    <button onclick="handleAdminLogout()" title="Exit & Logout of Command Room" class="ml-1 bg-red-900/70 hover:bg-red-600 text-red-200 hover:text-white px-2 py-0.5 rounded text-[10px] font-bold border border-red-500/40 transition-all flex items-center space-x-1 cursor-pointer">
+                        <span>🚪 LOGOUT</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- App Body with Left Sidebar Navigation & Multi-Page Views -->
+        <div class="flex-1 flex overflow-hidden">
         
         <!-- SIDEBAR NAVIGATION MENU (8 EXTENSIVE MODULES) -->
         <nav class="w-64 bg-[#0E1626] border-r border-slate-800 flex flex-col justify-between p-3 font-mono text-xs z-40">
@@ -684,6 +789,7 @@
             Developed & Engineered by: <span class="text-white font-bold underline">Purbayan Pal</span>
         </div>
     </footer>
+    </div> <!-- END admin-dashboard-wrapper -->
 
     <!-- JavaScript Controller -->
     <script>
@@ -1699,13 +1805,130 @@
             } catch(e) {}
         }
 
-        window.onload = () => {
+        let dashboardStarted = false;
+
+        function startAdminDashboard() {
+            if (dashboardStarted) return;
+            dashboardStarted = true;
             initMap();
             initCharts();
             updateLiveClockAndTelemetry();
             setInterval(updateLiveClockAndTelemetry, 1000);
             initWebSocket();
             loadSMSGatewaySettings();
+        }
+
+        function checkAdminAuthOnLoad() {
+            const authContainer = document.getElementById('admin-auth-container');
+            const dashboardWrapper = document.getElementById('admin-dashboard-wrapper');
+            const sessionRaw = sessionStorage.getItem('disasterguard_admin_session');
+
+            if (sessionRaw) {
+                try {
+                    const adminObj = JSON.parse(sessionRaw);
+                    if (adminObj && adminObj.email) {
+                        if (authContainer) authContainer.classList.add('hidden');
+                        if (dashboardWrapper) dashboardWrapper.classList.remove('hidden');
+                        const headerName = document.getElementById('header-admin-name');
+                        if (headerName) headerName.innerText = adminObj.email;
+                        startAdminDashboard();
+                        return;
+                    }
+                } catch(e) {
+                    sessionStorage.removeItem('disasterguard_admin_session');
+                }
+            }
+
+            // No active session: force display of login screen and lock dashboard
+            if (authContainer) authContainer.classList.remove('hidden');
+            if (dashboardWrapper) dashboardWrapper.classList.add('hidden');
+        }
+
+        async function handleAdminLogin() {
+            const emailInput = document.getElementById('admin-email');
+            const passInput = document.getElementById('admin-password');
+            const errEl = document.getElementById('admin-login-error');
+            const errText = document.getElementById('admin-login-error-text');
+            const loginBox = document.getElementById('admin-login-box');
+            const btn = document.getElementById('btn-admin-login');
+
+            const email = emailInput ? emailInput.value.trim() : '';
+            const password = passInput ? passInput.value.trim() : '';
+
+            if (!email || !password) {
+                errText.innerHTML = "<b>❌ CREDENTIALS REQUIRED:</b> Please enter both your Admin Gmail and Password.";
+                errEl.classList.remove('hidden');
+                if (loginBox) {
+                    loginBox.classList.add('animate-shake');
+                    setTimeout(() => loginBox.classList.remove('animate-shake'), 500);
+                }
+                return;
+            }
+
+            btn.innerHTML = "<span>⏳ AUTHENTICATING COMMANDER...</span>";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.success && data.admin) {
+                    // Session stored in sessionStorage (Automatically wiped when tab/browser is closed)
+                    sessionStorage.setItem('disasterguard_admin_session', JSON.stringify(data.admin));
+                    
+                    errEl.classList.add('hidden');
+                    document.getElementById('admin-auth-container').classList.add('hidden');
+                    document.getElementById('admin-dashboard-wrapper').classList.remove('hidden');
+                    
+                    const headerName = document.getElementById('header-admin-name');
+                    if (headerName) headerName.innerText = data.admin.email;
+
+                    startAdminDashboard();
+                    showAdminToast("🔐 Admin Authorized: Welcome " + (data.admin.name || data.admin.email));
+                } else {
+                    // Wrong password / Invalid credentials
+                    errText.innerHTML = "<b>❌ PASSWORD INVALID:</b> " + (data.error || "The password or Gmail you entered is incorrect. Access Denied (ভুল পাসওয়ার্ড দেওয়া হয়েছে)!");
+                    errEl.classList.remove('hidden');
+                    if (loginBox) {
+                        loginBox.classList.add('animate-shake');
+                        setTimeout(() => loginBox.classList.remove('animate-shake'), 500);
+                    }
+                    if (passInput) passInput.value = '';
+                }
+            } catch(e) {
+                errText.innerHTML = "<b>❌ CONNECTION ERROR:</b> Unable to connect to authentication server.";
+                errEl.classList.remove('hidden');
+            } finally {
+                btn.innerHTML = "<span>🔐 AUTHENTICATE & ENTER COMMAND ROOM</span>";
+                btn.disabled = false;
+            }
+        }
+
+        function handleAdminLogout() {
+            sessionStorage.removeItem('disasterguard_admin_session');
+            location.reload();
+        }
+
+        function toggleAdminPasswordVisibility() {
+            const passInput = document.getElementById('admin-password');
+            const eyeIcon = document.getElementById('eye-icon');
+            if (passInput) {
+                if (passInput.type === 'password') {
+                    passInput.type = 'text';
+                    if (eyeIcon) eyeIcon.innerText = '🙈';
+                } else {
+                    passInput.type = 'password';
+                    if (eyeIcon) eyeIcon.innerText = '👁️';
+                }
+            }
+        }
+
+        window.onload = () => {
+            checkAdminAuthOnLoad();
         };
     </script>
 </body>

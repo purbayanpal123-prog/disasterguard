@@ -503,6 +503,44 @@ async def auth_login(payload: Dict[str, Any]):
         return {"success": True, "user": user}
     return {"success": False, "error": "❌ Invalid Phone Number/Email or Password! Access Denied."}
 
+# ==============================================================================
+# TACTICAL COMMAND ROOM ADMIN AUTHENTICATION (GMAIL + PASSWORD ONLY, NO OTP)
+# ==============================================================================
+
+@app.post("/api/admin/login")
+async def admin_login(payload: Dict[str, Any]):
+    email = payload.get("email", "").strip()
+    password = payload.get("password", "").strip()
+    
+    if not email or not password:
+        return {"success": False, "error": "Both Gmail and Admin Password are required!"}
+        
+    if "@" not in email or "." not in email:
+        return {"success": False, "error": "Invalid Gmail or Email address format!"}
+        
+    admin = database.authenticate_admin(email, password)
+    if not admin:
+        return {"success": False, "error": "❌ PASSWORD INVALID: The password or Gmail you entered is incorrect. Access Denied."}
+        
+    session_token = str(uuid.uuid4())
+    return {
+        "success": True,
+        "token": session_token,
+        "admin": admin
+    }
+
+@app.post("/api/admin/change-password")
+async def admin_change_password(payload: Dict[str, Any]):
+    email = payload.get("email", "").strip()
+    old_pass = payload.get("old_password", "").strip()
+    new_pass = payload.get("new_password", "").strip()
+    
+    if not email or not old_pass or not new_pass:
+        return {"success": False, "error": "All fields are required."}
+        
+    res = database.change_admin_password(email, old_pass, new_pass)
+    return res
+
 @app.get("/api/user/data")
 async def get_user_data(user_id: int):
     """Returns private profile, individual distress logs, and personal intercom history."""
