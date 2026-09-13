@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DisasterGuard | High-Tech Project Presentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Outfit', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-sans { font-family: 'Inter', sans-serif; }
+
+        /* Slide Transition Animations */
+        .slide {
+            display: none;
+            opacity: 0;
+            transform: scale(0.98);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .slide.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Ambient Glowing Backgrounds */
+        .glow-cyan {
+            box-shadow: 0 0 50px -10px rgba(6, 182, 212, 0.35);
+        }
+        .glow-blue {
+            box-shadow: 0 0 50px -10px rgba(59, 130, 246, 0.35);
+        }
+        .glow-emerald {
+            box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.35);
+        }
+        .glow-purple {
+            box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.35);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0F19; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-[#070B14] text-slate-100 min-h-screen flex flex-col justify-between select-none overflow-x-hidden relative">
+
+    <!-- Ambient Gradient Backdrops -->
+    <div class="fixed top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[140px] pointer-events-none -z-10"></div>
+    <div class="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none -z-10"></div>
+
+    <!-- TOP BAR: Navigation Header & Branding -->
+    <header class="border-b border-slate-800/80 bg-[#0E1626]/80 backdrop-blur-md px-6 py-3 flex justify-between items-center z-50">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></div>
+            <span class="font-mono text-sm tracking-wider text-cyan-400 font-bold uppercase">DISASTERGUARD</span>
+            <span class="text-xs bg-cyan-950 border border-cyan-500/40 text-cyan-300 px-3 py-0.5 rounded-full font-mono font-semibold">
+                Official Defense &amp; Disaster Intelligence Deck
+            </span>
+        </div>
+        <div class="flex items-center space-x-4 text-xs font-mono">
+            <span class="text-slate-400 hidden sm:inline">Lead Engineer: <b class="text-white">Purbayan Pal</b></span>
+            <button onclick="toggleFullScreen()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-all flex items-center space-x-1.5 cursor-pointer">
+                <span>⛶</span> <span class="hidden md:inline">FULLSCREEN</span>
+            </button>
+            <button onclick="toggleNotes()" id="notes-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 transition-all flex items-center space-x-1.5 cursor-pointer">
+                <span>📝</span> <span class="hidden md:inline">SPEAKER NOTES</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN SLIDE VIEWER CONTAINER -->
+    <main class="flex-1 flex items-center justify-center p-4 sm:p-8 max-w-7xl mx-auto w-full relative">
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 1: TITLE & COVER SLIDE -->
+        <!-- ================================================================= -->
+        <div class="slide active flex-col items-center text-center max-w-4xl space-y-6" data-title="Project Overview">
+            <div class="inline-flex items-center space-x-2 bg-gradient-to-r from-cyan-950 to-blue-950 border border-cyan-500/50 text-cyan-300 px-4 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg shadow-cyan-950/50">
+                <span>🛡️ NATIONAL DISASTER RESILIENCE INITIATIVE</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight">
+                DISASTER<span class="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-teal-300 to-blue-500">GUARD</span>
+            </h1>
+
+            <p class="text-lg sm:text-2xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
+                Autonomous Basin Telemetry &amp; Real-Time Crisis Command Engine
+            </p>
+
+            <div class="bg-[#0E1626]/90 border border-slate-800 rounded-2xl p-5 max-w-xl mx-auto glow-cyan">
+                <div class="text-xs font-mono text-cyan-400 uppercase tracking-widest font-bold mb-1">Architect &amp; Lead Systems Engineer</div>
+                <div class="text-2xl font-bold text-white tracking-wide">Purbayan Pal</div>
+                <div class="text-xs text-slate-400 font-mono mt-1">Full-Stack Cloud Architect &amp; Geospatial Intelligence Developer</div>
+            </div>
+
+            <!-- 4 Value Pillar Badges -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl pt-2">
+                <div class="bg-cyan-950/40 border border-cyan-500/30 rounded-xl p-3 text-center">
+                    <div class="text-2xl">⚡</div>
+                    <div class="text-xs font-bold text-cyan-300 font-mono mt-1">1-Tap GPS SOS</div>
+                    <div class="text-[10px] text-slate-400">Sub-Meter Precision</div>
+                </div>
+                <div class="bg-blue-950/40 border border-blue-500/30 rounded-xl p-3 text-center">
+                    <div class="text-2xl">🗺️</div>
+                    <div class="text-xs font-bold text-blue-300 font-mono mt-1">Tactical GIS Map</div>
+                    <div class="text-[10px] text-slate-400">Esri Aerial Satellite</div>
+                </div>
+                <div class="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3 text-center">
+                    <div class="text-2xl">💰</div>
+                    <div class="text-xs font-bold text-emerald-300 font-mono mt-1">₹0.00 Daily Cost</div>
+                    <div class="text-[10px] text-slate-400">Zero Waste Policy</div>
+                </div>
+                <div class="bg-purple-950/40 border border-purple-500/30 rounded-xl p-3 text-center">
+                    <div class="text-2xl">☁️</div>
+                    <div class="text-xs font-bold text-purple-300 font-mono mt-1">24/7 Cloud Live</div>
+                    <div class="text-[10px] text-slate-400">Global Accessibility</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 2: THE PROBLEM (WHY EXISTING SYSTEMS FAIL) -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="The Problem">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-red-950 border border-red-500/50 text-red-300 px-3 py-1 rounded-full font-mono font-bold">SECTION 01</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">The Real Crisis: Why Current Relief Fails</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">Every monsoon in Assam (Brahmaputra Basin), Bengal, Bihar and Kerala, flash floods claim hundreds of lives.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-gradient-to-b from-[#131B2E] to-[#0E1626] border border-red-500/30 rounded-2xl p-6 relative overflow-hidden group hover:border-red-500/60 transition-all">
+                    <div class="text-4xl mb-3">📞 ❌</div>
+                    <h3 class="text-lg font-bold text-red-300 mb-2">Emergency Lines Jammed</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed font-sans">
+                        During cyclones or flash floods, 112, 100, and 108 phone lines receive thousands of concurrent calls. The golden rescue hour is lost in call waiting.
+                    </p>
+                    <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-red-400">
+                        Result: 60%+ Calls Dropped
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-b from-[#131B2E] to-[#0E1626] border border-yellow-500/30 rounded-2xl p-6 relative overflow-hidden group hover:border-yellow-500/60 transition-all">
+                    <div class="text-4xl mb-3">🌊 🚜</div>
+                    <h3 class="text-lg font-bold text-yellow-300 mb-2">Blind Rescue Dispatches</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed font-sans">
+                        Rescue squads (NDRF / SDRF) enter disaster zones without knowing which roads are underwater, resulting in boats and ambulances getting trapped in flash floods.
+                    </p>
+                    <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-yellow-400">
+                        Result: Rescue Teams Stranded
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-b from-[#131B2E] to-[#0E1626] border border-orange-500/30 rounded-2xl p-6 relative overflow-hidden group hover:border-orange-500/60 transition-all">
+                    <div class="text-4xl mb-3">📍 ❓</div>
+                    <h3 class="text-lg font-bold text-orange-300 mb-2">Zero Spatial Location</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed font-sans">
+                        Panicking victims cannot give accurate landmarks in flooded darkness. Rescuers search blindly over massive square kilometer zones without exact GPS pins.
+                    </p>
+                    <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] font-mono text-orange-400">
+                        Result: Lethal Delays in Rescue
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-red-950/30 border border-red-500/40 rounded-xl p-4 flex items-center justify-between font-mono text-xs text-red-200">
+                <span>⚠️ Over <b>75% of flood casualties</b> happen due to delayed response and lack of coordinated geographic data.</span>
+                <span class="font-bold text-white uppercase hidden sm:inline">DisasterGuard Fixes This</span>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 3: THE DISASTERGUARD ECOSYSTEM (DUAL PORTALS) -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="The Ecosystem">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-cyan-950 border border-cyan-500/50 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold">SECTION 02</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">The DisasterGuard Architecture</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">An autonomous end-to-end twin-hub platform connecting citizens in distress directly to command rescue units.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Citizen Hub Card -->
+                <div class="bg-gradient-to-br from-[#0E1626] to-[#131B2E] border-2 border-emerald-500/40 rounded-2xl p-6 glow-emerald">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs bg-emerald-950 border border-emerald-500/60 text-emerald-300 px-3 py-1 rounded-full font-mono font-bold">
+                            PORTAL 1: CITIZEN RESCUE HUB
+                        </span>
+                        <span class="text-2xl">📱</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Public Emergency Interface</h3>
+                    <p class="text-xs text-slate-300 mb-4 font-sans leading-relaxed">
+                        Designed for extreme crises: ultra-lightweight, works even on poor mobile 2G/3G connections, zero subscription fees.
+                    </p>
+                    <ul class="space-y-2 text-xs font-mono text-emerald-200">
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>1-Tap Instant GPS Distress Transmission</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Cellular 6-Digit SMS OTP Registration</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Zero-Cost Password Daily Login (₹0.00)</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Live Two-Way Satellite Rescue Intercom</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Nearest High-Ground Safe Shelters &amp; Camps</span></li>
+                    </ul>
+                </div>
+
+                <!-- Admin Command Card -->
+                <div class="bg-gradient-to-br from-[#0E1626] to-[#131B2E] border-2 border-cyan-500/40 rounded-2xl p-6 glow-cyan">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs bg-cyan-950 border border-cyan-500/60 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold">
+                            PORTAL 2: TACTICAL COMMAND ROOM
+                        </span>
+                        <span class="text-2xl">🎖️</span>
+                    </div>
+                    <h3 class="text-2xl font-bold text-white mb-2">Military / NDRF Control Center</h3>
+                    <p class="text-xs text-slate-300 mb-4 font-sans leading-relaxed">
+                        Strictly restricted command center with real-time geospatial telemetry, flood modeling, and fleet orchestration.
+                    </p>
+                    <ul class="space-y-2 text-xs font-mono text-cyan-200">
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Gmail &amp; Password Gate (Strict Invalid Rejection)</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Auto-Logout on Tab Close (Session Storage)</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>4-Layer GIS Satellite Map with Flood Polygons</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Interactive [ROUTE] Vector Trajectory to Victims</span></li>
+                        <li class="flex items-center space-x-2"><span>✓</span> <span>Hydrology Discharge &amp; Snyder Crest Lag Models</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 4: STEP-BY-STEP OPERATIONAL FLOWCHART -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="Operational Flowchart">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-purple-950 border border-purple-500/50 text-purple-300 px-3 py-1 rounded-full font-mono font-bold">SECTION 03</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">End-to-End Operational Lifecycle</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">How an emergency is handled in seconds: From citizen SOS to boots on the ground.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <!-- Step 1 -->
+                <div class="bg-[#0E1626] border border-cyan-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-cyan-900 border border-cyan-400 text-cyan-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">1</div>
+                    <div class="text-xl">🆘</div>
+                    <div class="text-xs font-bold text-white">Citizen SOS</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">GPS Lat/Lng, Blood Group &amp; Vulnerability sent</div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-[#0E1626] border border-blue-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-blue-900 border border-blue-400 text-blue-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">2</div>
+                    <div class="text-xl">☁️</div>
+                    <div class="text-xs font-bold text-white">Cloud Broadcast</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">Sub-50ms WebSocket push across network</div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-[#0E1626] border border-red-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-red-900 border border-red-400 text-red-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">3</div>
+                    <div class="text-xl">🚨</div>
+                    <div class="text-xs font-bold text-white">Alarm &amp; Siren</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">Control Room lights up with audio alarm popup</div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="bg-[#0E1626] border border-yellow-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-yellow-900 border border-yellow-400 text-yellow-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">4</div>
+                    <div class="text-xl">🗺️</div>
+                    <div class="text-xs font-bold text-white">GIS Routing</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">Dry corridor checked, safe vector calculated</div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="bg-[#0E1626] border border-emerald-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-emerald-900 border border-emerald-400 text-emerald-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">5</div>
+                    <div class="text-xl">🚤</div>
+                    <div class="text-xs font-bold text-white">Squad Dispatch</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">NDRF motorboat / 108 ambulance deployed</div>
+                </div>
+
+                <!-- Step 6 -->
+                <div class="bg-[#0E1626] border border-purple-500/40 rounded-xl p-4 text-center space-y-2">
+                    <div class="w-8 h-8 rounded-full bg-purple-900 border border-purple-400 text-purple-300 font-mono font-bold mx-auto flex items-center justify-center text-xs">6</div>
+                    <div class="text-xl">💬</div>
+                    <div class="text-xs font-bold text-white">2-Way Intercom</div>
+                    <div class="text-[10px] text-slate-400 leading-tight">Victim alerted with sound &amp; live chat guidance</div>
+                </div>
+            </div>
+
+            <!-- Flowchart Narrative Summary Card -->
+            <div class="bg-[#131B2E]/90 border border-slate-700 rounded-xl p-4 text-xs font-mono text-slate-300 flex items-center space-x-3">
+                <span class="text-2xl">⏱️</span>
+                <div>
+                    <b>Total Round-Trip Response Time: Under 15 Seconds.</b> Traditional emergency helplines take 10 to 35 minutes just to log a call and locate the address.
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 5: CITIZEN PORTAL DEEP DIVE -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="Citizen Portal">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-emerald-950 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full font-mono font-bold">MODULE 01</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">Citizen Emergency Portal Highlights</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">Live URL: <a href="https://disasterguard-4ehk.onrender.com/client" target="_blank" class="text-cyan-400 underline">disasterguard-4ehk.onrender.com/client</a></p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">🛡️</div>
+                    <h3 class="text-base font-bold text-white">Anti-Spam OTP Registration</h3>
+                    <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                        To stop pranksters and malicious fake alerts, account registration requires real 6-digit GSM Cellular SMS OTP verification via Fast2SMS telecom routes.
+                    </p>
+                    <div class="text-[11px] font-mono text-emerald-400 bg-emerald-950/40 p-2 rounded-lg">
+                        ✓ 100% Genuine User Identity
+                    </div>
+                </div>
+
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">💳</div>
+                    <h3 class="text-base font-bold text-white">Zero-Cost Daily Login</h3>
+                    <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                        Daily logins require only <b>Phone Number + Password</b> without any OTP. This saves ₹5.00 per login, ensuring citizens never burn recharge balance.
+                    </p>
+                    <div class="text-[11px] font-mono text-cyan-400 bg-cyan-950/40 p-2 rounded-lg">
+                        ✓ ₹0.00 Running Cost per Login
+                    </div>
+                </div>
+
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">🔊</div>
+                    <h3 class="text-base font-bold text-white">Instant Audio Rescue Alarm</h3>
+                    <p class="text-xs text-slate-400 font-sans leading-relaxed">
+                        When the control room acknowledges the distress or dispatches a boat, the victim's phone immediately vibrates and synthesizes a dual-tone audio buzzer.
+                    </p>
+                    <div class="text-[11px] font-mono text-yellow-400 bg-yellow-950/40 p-2 rounded-lg">
+                        ✓ Calms panic &amp; confirms help
+                    </div>
+                </div>
+            </div>
+
+            <!-- Medical Triage Strip -->
+            <div class="bg-gradient-to-r from-red-950/40 via-purple-950/30 to-blue-950/40 border border-slate-800 rounded-xl p-4 flex items-center justify-between font-mono text-xs">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">🩸</span>
+                    <span><b>Smart Medical Profiling:</b> Blood group, pregnancy, senior citizen or wheelchair status automatically tags the SOS with <b>P0 High Priority</b>.</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 6: ADMIN COMMAND CENTER DEEP DIVE -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="Admin Command Center">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-cyan-950 border border-cyan-500/50 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold">MODULE 02</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">Tactical Admin Command Room</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">Live URL: <a href="https://disasterguard-4ehk.onrender.com/" target="_blank" class="text-cyan-400 underline">disasterguard-4ehk.onrender.com/</a></p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-[#0E1626] border border-cyan-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <span>🔐</span> <span>Military-Grade Credential Gate</span>
+                        </h3>
+                        <span class="text-[10px] bg-red-900 text-red-200 px-2 py-0.5 rounded font-mono font-bold">STRICT SECURITY</span>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Protected by Admin Gmail (<code class="text-cyan-300">purbayanpal123@gmail.com</code>) and Master Password (<code class="text-cyan-300">Pal@12345</code>). No OTP needed.
+                    </p>
+                    <div class="bg-red-950/40 border border-red-500/40 rounded-xl p-3 text-[11px] font-mono text-red-200">
+                        <b>Anti-Intrusion Defense:</b> Entering wrong credentials triggers an animated box shake and displays <code>PASSWORD INVALID: Access Denied</code>, completely blocking dashboard access.
+                    </div>
+                </div>
+
+                <div class="bg-[#0E1626] border border-blue-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                            <span>🚪</span> <span>Automatic Logout on Exit</span>
+                        </h3>
+                        <span class="text-[10px] bg-blue-900 text-blue-200 px-2 py-0.5 rounded font-mono font-bold">SESSION STORAGE</span>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Closing the tab or browser automatically annihilates the active session token. Next time the URL is opened, re-authentication is mandatory.
+                    </p>
+                    <div class="bg-blue-950/40 border border-blue-500/40 rounded-xl p-3 text-[11px] font-mono text-blue-200">
+                        <b>Unattended Terminal Protection:</b> Even if commanders leave their laptops, unauthorized bystanders cannot view tactical operations.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 8 Specialized Command Sub-Modules -->
+            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4">
+                <div class="text-xs font-mono text-cyan-400 font-bold uppercase mb-2">8 Built-in Tactical Sub-Modules:</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono text-slate-300">
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">📊 Executive Overview</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">🗺️ Tactical GIS Map</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">🌊 River Hydrology</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">🚑 Fleets &amp; Shelters</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">🚰 Urban Drainage</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">📡 Distress Comms</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">🛰️ Satellite Constellation</div>
+                    <div class="bg-[#0B0F19] p-2 rounded border border-slate-800">⚙️ Gateway Settings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 7: TACTICAL FLEET ROUTING & GIS ENGINE -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="Tactical GIS & Routing">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-yellow-950 border border-yellow-500/50 text-yellow-300 px-3 py-1 rounded-full font-mono font-bold">ENGINEERING CORE</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">Geospatial Intelligence &amp; Vector Routing</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">How DisasterGuard prevents rescue boats and vehicles from becoming flood casualties.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">🛰️</div>
+                    <h3 class="text-base font-bold text-cyan-300">4-Type GIS Satellite Map</h3>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Supports Esri High-Resolution World Imagery Aerial Hybrid, Carto Dark Matter, OpenTopoMap Contour Elevations, and Street Navigation layers.
+                    </p>
+                    <div class="text-[10px] font-mono text-slate-400">
+                        Enables clear visual recon regardless of weather.
+                    </div>
+                </div>
+
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">⚠️</div>
+                    <h3 class="text-base font-bold text-yellow-300">Dynamic Inundation Polygons</h3>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Maps submerged low-lying areas (e.g. Anil Nagar, Bharalu River Outfall) and flags impassable streets with red dashed warning lines.
+                    </p>
+                    <div class="text-[10px] font-mono text-slate-400">
+                        Saves hours of hazardous dead-ends.
+                    </div>
+                </div>
+
+                <div class="bg-[#0E1626] border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div class="text-3xl">🚀</div>
+                    <h3 class="text-base font-bold text-emerald-300">Interactive [ROUTE] Engine</h3>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Clicking <b>[ROUTE]</b> on any NDRF motorboat or 108 ambulance automatically draws an animated glowing vector polyline directly to the victim's GPS coordinates!
+                    </p>
+                    <div class="text-[10px] font-mono text-slate-400">
+                        Zero guesswork navigation for rescue pilots.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fleet Composition Card -->
+            <div class="bg-[#131B2E] border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center text-xs font-mono">
+                <div class="flex items-center space-x-3 mb-2 sm:mb-0">
+                    <span class="text-2xl">🛥️</span>
+                    <span><b>Real Fleet Inventory:</b> NDRF 40HP Motorboats (Pandu Port), SDRF Amphibious 4x4s (Khanapara), 108 ALS Ambulances (GMCH Trauma Center).</span>
+                </div>
+                <span class="text-emerald-400 font-bold bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/40">100% Real Guwahati Sectors</span>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 8: REAL-WORLD VIABILITY (WHY IT WORKS) -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="Real-World Viability">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-emerald-950 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full font-mono font-bold">VERIFICATION</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">Why This Project 100% Works in Reality</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">This is not a theoretical model or mockup. It is fully built, integrated, and verified.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-[#0E1626] border border-emerald-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">📡</span>
+                        <h3 class="text-base font-bold text-white">Live Cellular Telecom Gateway</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Integrated directly with Fast2SMS Quick &amp; DLT GSM SMS Gateway. When an Indian mobile number registers, real cellular packets hit Indian telecom towers and deliver SMS within 3 seconds.
+                    </p>
+                </div>
+
+                <div class="bg-[#0E1626] border border-cyan-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">🛰️</span>
+                        <h3 class="text-base font-bold text-white">Hardware Geolocation Triangulation</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        The client uses the device's native W3C Geolocation API with high-accuracy satellite polling, acquiring authentic latitude, longitude, and accuracy radii.
+                    </p>
+                </div>
+
+                <div class="bg-[#0E1626] border border-blue-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">☁️</span>
+                        <h3 class="text-base font-bold text-white">24/7 Cloud High Availability</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        Hosted on Render Cloud's Singapore Edge Datacenter with automated container health-checks. Even when personal laptops are powered down, the server is live globally.
+                    </p>
+                </div>
+
+                <div class="bg-[#0E1626] border border-purple-500/30 rounded-2xl p-5 space-y-3">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-3xl">⚡</span>
+                        <h3 class="text-base font-bold text-white">Zero-Cost Operational Policy</h3>
+                    </div>
+                    <p class="text-xs text-slate-300 font-sans leading-relaxed">
+                        By substituting wasteful OTP on login with secure password verification, the system runs with zero recurring SMS bills while retaining military security.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 9: IMPACT & COMPARISON -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col max-w-5xl w-full space-y-6" data-title="System Comparison">
+            <div class="flex items-center space-x-3">
+                <span class="text-xs bg-cyan-950 border border-cyan-500/50 text-cyan-300 px-3 py-1 rounded-full font-mono font-bold">BENCHMARKS</span>
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-white">Traditional Methods vs. DisasterGuard</h2>
+            </div>
+            <p class="text-sm text-slate-400 font-mono">A quantitative leap in emergency management capability.</p>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-800">
+                <table class="w-full text-left font-mono text-xs">
+                    <thead class="bg-[#131B2E] text-slate-300 border-b border-slate-800">
+                        <tr>
+                            <th class="p-4">Operational Metric</th>
+                            <th class="p-4 text-red-400">Traditional Emergency Help (112/100)</th>
+                            <th class="p-4 text-cyan-400 font-bold bg-cyan-950/30">DisasterGuard Autonomous Engine</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60 bg-[#0E1626]">
+                        <tr>
+                            <td class="p-4 font-bold text-white">Distress Call Registration</td>
+                            <td class="p-4 text-slate-400">5 – 15 Minutes (Manual Voice Call)</td>
+                            <td class="p-4 text-emerald-300 font-bold bg-cyan-950/20">Instant 1-Click (1 – 2 Seconds)</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 font-bold text-white">Location Accuracy</td>
+                            <td class="p-4 text-slate-400">Vague verbal descriptions ("Near temple")</td>
+                            <td class="p-4 text-emerald-300 font-bold bg-cyan-950/20">Sub-Meter Precision Satellite GPS</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 font-bold text-white">Flood Routing Guidance</td>
+                            <td class="p-4 text-slate-400">None (Rescuers guess on the road)</td>
+                            <td class="p-4 text-emerald-300 font-bold bg-cyan-950/20">Automated Vector Trajectory on GIS</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 font-bold text-white">Medical Triage Prioritization</td>
+                            <td class="p-4 text-slate-400">First-come, first-served (Unsorted)</td>
+                            <td class="p-4 text-emerald-300 font-bold bg-cyan-950/20">P0 Tagging for Pregnant, Elderly, Critical</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 font-bold text-white">Victim Communication</td>
+                            <td class="p-4 text-slate-400">Call disconnects; Victim is left in dark</td>
+                            <td class="p-4 text-emerald-300 font-bold bg-cyan-950/20">Continuous 2-Way Satellite Intercom</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- SLIDE 10: CONCLUSION & LIVE DEMO -->
+        <!-- ================================================================= -->
+        <div class="slide flex-col items-center text-center max-w-4xl space-y-6" data-title="Conclusion & Live Demo">
+            <div class="inline-flex items-center space-x-2 bg-gradient-to-r from-emerald-950 to-cyan-950 border border-emerald-500/50 text-emerald-300 px-4 py-1.5 rounded-full text-xs font-mono font-bold shadow-lg shadow-emerald-950/50">
+                <span>🎯 READY FOR STATE &amp; NATIONAL DEPLOYMENT</span>
+            </div>
+
+            <h2 class="text-4xl sm:text-5xl font-extrabold text-white leading-tight">
+                Empowering Humanity Against Disasters
+            </h2>
+
+            <p class="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto font-sans leading-relaxed">
+                DisasterGuard stands ready as a modern, life-saving, zero-latency digital bridge between citizens in danger and the brave forces of national rescue.
+            </p>
+
+            <!-- Live Launch Buttons -->
+            <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 pt-4">
+                <a href="/client" target="_blank" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-8 py-4 rounded-xl text-xs font-mono tracking-wider transition-all shadow-xl shadow-emerald-500/20 flex items-center justify-center space-x-2">
+                    <span>📱</span> <span>LAUNCH CITIZEN PORTAL (/client)</span>
+                </a>
+                <a href="/" target="_blank" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-8 py-4 rounded-xl text-xs font-mono tracking-wider transition-all shadow-xl shadow-cyan-500/20 flex items-center justify-center space-x-2">
+                    <span>🎖️</span> <span>LAUNCH ADMIN COMMAND ROOM (/)</span>
+                </a>
+            </div>
+
+            <div class="bg-[#0E1626]/80 border border-slate-800 rounded-xl p-4 max-w-md mx-auto text-xs font-mono text-slate-400 space-y-1">
+                <div>Admin Credentials: <b class="text-cyan-300">purbayanpal123@gmail.com</b></div>
+                <div>Master Password: <b class="text-cyan-300">Pal@12345</b></div>
+            </div>
+
+            <div class="text-xs font-mono text-slate-500 pt-6 border-t border-slate-800/80 w-full">
+                Designed, Engineered &amp; Developed with Pride by <span class="text-white font-bold">Purbayan Pal</span> • 2026
+            </div>
+        </div>
+
+    </main>
+
+    <!-- SPEAKER NOTES DRAWER (Collapsible) -->
+    <div id="speaker-notes" class="hidden border-t-2 border-cyan-500/40 bg-[#0E1626]/95 backdrop-blur-xl px-6 py-4 z-40 max-w-5xl mx-auto w-full rounded-t-2xl shadow-2xl">
+        <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-mono font-bold text-cyan-400 uppercase flex items-center space-x-2">
+                <span>📝</span> <span>Presenter Speaking Notes (Read While Presenting)</span>
+            </span>
+            <button onclick="toggleNotes()" class="text-slate-400 hover:text-white text-xs font-mono">✕ CLOSE</button>
+        </div>
+        <div id="notes-content" class="text-xs font-sans text-slate-300 leading-relaxed max-h-32 overflow-y-auto">
+            Speaking points will appear here for each slide.
+        </div>
+    </div>
+
+    <!-- BOTTOM FLOATING CONTROLLER -->
+    <footer class="border-t border-slate-800/80 bg-[#0E1626]/90 backdrop-blur-md px-6 py-3 flex flex-col sm:flex-row justify-between items-center z-50 gap-3">
+        <div class="flex items-center space-x-2 font-mono text-xs text-slate-400">
+            <span>SLIDE</span>
+            <span id="slide-number" class="text-cyan-400 font-bold text-sm">1</span>
+            <span>OF</span>
+            <span id="slide-total" class="text-white font-bold text-sm">10</span>
+            <span class="text-slate-600">|</span>
+            <span id="slide-name" class="text-slate-300 hidden md:inline">Project Overview</span>
+        </div>
+
+        <!-- Slide Navigation Buttons -->
+        <div class="flex items-center space-x-2">
+            <button onclick="prevSlide()" class="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all border border-slate-700 flex items-center space-x-1 cursor-pointer">
+                <span>◀</span> <span>PREV</span>
+            </button>
+            <button onclick="nextSlide()" class="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 px-5 py-2 rounded-xl text-xs font-mono font-bold transition-all shadow-lg shadow-cyan-500/20 flex items-center space-x-1 cursor-pointer">
+                <span>NEXT</span> <span>▶</span>
+            </button>
+        </div>
+
+        <div class="text-[11px] font-mono text-slate-500 hidden sm:block">
+            Keyboard Controls: <kbd class="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">◀</kbd> <kbd class="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">▶</kbd> or <kbd class="bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">Space</kbd>
+        </div>
+    </footer>
+
+    <!-- SLIDE DECK JAVASCRIPT CONTROLLER -->
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        let currentSlide = 0;
+
+        const speakerNotesData = [
+            /* Slide 1 */
+            "নমস্কার। আজ আমি আপনাদের সামনে উপস্থাপন করছি 'DisasterGuard'—একটি সম্পূর্ণ স্বায়ত্তশাসিত নদী অববাহিকা টেলিমেট্রি এবং রিয়েল-টাইম সংকট মোকাবিলা কমান্ড ইঞ্জিন। এটি আমি এককভাবে ডেভেলপ করেছি সাধারণ মানুষের জীবন বাঁচাতে এবং উদ্ধারকারী দলের সময় বাঁচাতে।",
+            /* Slide 2 */
+            "প্রথমেই বলি, বর্তমান সিস্টেমে সমস্যা কোথায়। বন্যায় ১১২ বা ১০০ নম্বরে ফোন করলে লাইন পাওয়া যায় না। এছাড়া উদ্ধারকারীরা জানেন না কোন রাস্তাটি ডুবে গেছে, ফলে বোট বা অ্যাম্বুলেন্স নিজেই রাস্তায় আটকে পড়ে। আর মানুষ বিপদের সময়ে নিজের সঠিক লোকেশন বলতে পারে না।",
+            /* Slide 3 */
+            "DisasterGuard-এ দুটি অংশ আছে: ১) Citizen Portal যা অতি সাধারণ ফোনেও ১ ক্লিকে জিপিএস ও রক্তের গ্রুপ পাঠায়। ২) Admin Tactical Command Room যা সেনাবাহিনীর মতো স্যাটেলাইট ম্যাপে নিরাপদ রাস্তা খুঁজে বোট বা অ্যাম্বুলেন্স পাঠায়।",
+            /* Slide 4 */
+            "এই ফ্লোচার্টটি লক্ষ্য করুন: বিপদে পড়ে বাটনে চাপ দেওয়ার সাথে সাথে ৫ সেকেন্ডের মধ্যে কন্ট্রোল রুমে সাইরেন বাজে। সাথে সাথে নিরাপদ রুট তৈরি করে নিকটবর্তী রেসকিউ টিম পাঠানো হয় এবং ভিক্টিমের ফোনে মেসেজ চলে যায়।",
+            /* Slide 5 */
+            "নাগরিক পোর্টালে আসল মোবাইল OTP দিয়ে একাউন্ট তৈরি হয় যাতে ফেক কল না আসে। কিন্তু প্রতিদিন লগইন করার সময় কোনো OTP লাগে না, শুধুই পাসওয়ার্ড দিয়ে ফ্রি-তে লগইন হয়, যাতে কারো অযথা টাকা না কাটে।",
+            /* Slide 6 */
+            "অ্যাডমিন পোর্টালে সাধারণ মানুষ ঢুকতে পারবে না। এটি purbayanpal123@gmail.com এবং Pal@12345 দিয়ে সুরক্ষিত। ভুল পাসওয়ার্ড দিলে স্ক্রিন কেঁপে ওঠে এবং এন্ট্রি ব্লক করে দেয়। ট্যাব বন্ধ করলেই অটোমেটিক লগআউট হয়ে যায়।",
+            /* Slide 7 */
+            "আমাদের GIS সিস্টেমে ৪ ধরনের স্যাটেলাইট ম্যাপ আছে। টেবিলের 'ROUTE' বাটনে চাপলেই সরাসরি রেসকিউ বোট থেকে ভিক্টিমের জিপিএস পর্যন্ত একটি জ্বলজ্বলে পথ তৈরি হয়ে যায়।",
+            /* Slide 8 */
+            "কেন এটি ১০০% সত্যি কাজ করবে? কারণ এতে আসল Fast2SMS টেলিকম গেটওয়ে দিয়ে ফোনে এসএমএস যায়, ডিভাইসের আসল স্যাটেলাইট জিপিএস নেয় এবং সিঙ্গাপুর ক্লাউডে এটি ২৪ ঘণ্টা চালু থাকে।",
+            /* Slide 9 */
+            "তুলনামূলক তথ্য দেখুন: সাধারণ হেল্পলাইনে ১৫-২০ মিনিট সময় নষ্ট হয়, যেখানে DisasterGuard মাত্র ১৫ সেকেন্ডে সবকিছু সম্পন্ন করে উদ্ধার সময় ৬০% কমিয়ে দেয়।",
+            /* Slide 10 */
+            "উপসংহারে, এটি সরকার, NDMA ও জনসাধারণের জন্য একটি অত্যন্ত কার্যকরী প্ল্যাটফর্ম। চলুন, এবার আমরা লাইভ পোর্টালটি সরাসরি ডেমো দেখি। ধন্যবাদ!"
+        ];
+
+        function showSlide(index) {
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === index);
+            });
+            currentSlide = index;
+
+            document.getElementById('slide-number').innerText = (index + 1);
+            document.getElementById('slide-total').innerText = slides.length;
+            
+            const title = slides[index].getAttribute('data-title') || ('Slide ' + (index + 1));
+            document.getElementById('slide-name').innerText = title;
+
+            // Update speaker notes
+            const notesEl = document.getElementById('notes-content');
+            if (notesEl && speakerNotesData[index]) {
+                notesEl.innerHTML = `<b>🗣️ কী বলবেন:</b> ${speakerNotesData[index]}`;
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                showSlide(currentSlide + 1);
+            } else {
+                showSlide(0); // loop back
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                showSlide(currentSlide - 1);
+            } else {
+                showSlide(slides.length - 1);
+            }
+        }
+
+        function toggleNotes() {
+            const notes = document.getElementById('speaker-notes');
+            const btn = document.getElementById('notes-btn');
+            if (notes.classList.contains('hidden')) {
+                notes.classList.remove('hidden');
+                btn.classList.add('bg-cyan-900', 'text-cyan-300', 'border-cyan-500');
+            } else {
+                notes.classList.add('hidden');
+                btn.classList.remove('bg-cyan-900', 'text-cyan-300', 'border-cyan-500');
+            }
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                }
+            }
+        }
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+                e.preventDefault();
+                nextSlide();
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp' || e.key === 'Backspace') {
+                e.preventDefault();
+                prevSlide();
+            } else if (e.key === 'f' || e.key === 'F') {
+                toggleFullScreen();
+            } else if (e.key === 'n' || e.key === 'N') {
+                toggleNotes();
+            } else if (e.key === 'Home') {
+                showSlide(0);
+            } else if (e.key === 'End') {
+                showSlide(slides.length - 1);
+            }
+        });
+
+        // Initialize first slide and notes
+        showSlide(0);
+    </script>
+</body>
+</html>

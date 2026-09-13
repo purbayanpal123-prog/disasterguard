@@ -898,6 +898,14 @@ async def serve_client_portal():
         return FileResponse(client_file)
     return HTMLResponse("<h1>DisasterGuard Client Portal Initializing...</h1>")
 
+@app.get("/presentation", response_class=HTMLResponse)
+@app.get("/slides", response_class=HTMLResponse)
+async def serve_presentation():
+    pres_file = os.path.join(STATIC_DIR, "presentation.html")
+    if os.path.exists(pres_file):
+        return FileResponse(pres_file)
+    return HTMLResponse("<h1>DisasterGuard Interactive Presentation Initializing...</h1>")
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
